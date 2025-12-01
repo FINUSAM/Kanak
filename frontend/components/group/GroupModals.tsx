@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserRole, User } from '../../types';
-import { inviteMemberOrAddGuest } from '../../services/storage';
+import api from '../../services/api';
 import { Check, AlertTriangle, FileDown, Calendar } from 'lucide-react';
 
 // --- Add Member Modal ---
@@ -8,31 +8,43 @@ interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   groupId: string;
-  currentUser: User;
   onSuccess: () => void;
 }
 
-export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose, groupId, currentUser, onSuccess }) => {
+export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose, groupId, onSuccess }) => {
   const [identifier, setIdentifier] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.CONTRIBUTOR);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setLoading(true);
 
     try {
-      const result = inviteMemberOrAddGuest(groupId, identifier, role, currentUser);
-      setSuccessMsg(result.message);
+      await api.post(`/groups/${groupId}/members`, { identifier, role });
+      setSuccessMsg('Member added or invited successfully!');
       setTimeout(() => {
         setIdentifier('');
         onSuccess();
         setSuccessMsg('');
       }, 1500);
     } catch (err: any) {
-      setError(err.message);
+      if (err.response?.status === 202) {
+        setSuccessMsg(err.response.data.detail);
+        setTimeout(() => {
+          setIdentifier('');
+          onSuccess();
+          setSuccessMsg('');
+        }, 1500);
+      } else {
+        setError(err.response?.data?.detail || 'Failed to add member.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,8 +93,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose,
 
           <div className="flex gap-3 pt-4">
             <button type="button" onClick={onClose} className="flex-1 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-            <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-              {role === UserRole.GUEST ? "Add Member" : "Send Invitation"}
+            <button type="submit" disabled={loading} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              {loading ? 'Processing...' : (role === UserRole.GUEST ? "Add Member" : "Send Invitation")}
             </button>
           </div>
         </form>

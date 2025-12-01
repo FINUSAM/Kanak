@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Group, Transaction, TransactionType, SplitMode, TransactionSplit } from '../../types';
-import { addTransaction, updateTransaction } from '../../services/storage';
+import api from '../../services/api';
 import { X, Check } from 'lucide-react';
 
 interface TransactionModalProps {
@@ -30,6 +30,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [includeMyself, setIncludeMyself] = useState(false);
   const [splitValues, setSplitValues] = useState<Record<string, string>>({});
   const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,7 +44,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setPayerId(tx.payerId || tx.createdById);
         setSplitMode(tx.splitMode);
 
-        const involvedIds = tx.involvedUserIds || [];
+        const involvedIds = tx.splits.map(s => s.userId);
         setIncludeMyself(involvedIds.includes(user.id));
         setSelectedOtherMembers(involvedIds.filter(id => id !== user.id));
 
@@ -258,20 +259,19 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     } else if (splitMode === SplitMode.AMOUNT) {
       splits = involvedIds.map(id => {
         const val = parseFloat(splitValues[id] || '0');
-        return { userId: id, amount: val };
+        return { userId: id, amount: val, percentage: 0 };
       });
     }
     return splits;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formErrors.length > 0) return;
     if (!txAmount || !txDesc) return;
+    setLoading(true);
 
     const amount = parseFloat(txAmount);
-    const involvedIds = [...selectedOtherMembers];
-    if (includeMyself) involvedIds.push(user.id);
     const splits = getFinalSplits(amount);
 
     try {
@@ -281,24 +281,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         description: txDesc,
         category: txCategory || 'Other',
         payerId: payerId,
-        involvedUserIds: involvedIds,
         splitMode,
         splits
       };
 
       if (editingTransaction) {
-        updateTransaction(editingTransaction.id, transactionData, user.id);
+        await api.put(`/groups/${group.id}/transactions/${editingTransaction.id}`, transactionData);
       } else {
-        addTransaction({
-          groupId: group.id,
-          ...transactionData,
-          createdBy: user.username,
-          createdById: user.id,
-        });
+        await api.post(`/groups/${group.id}/transactions/`, transactionData);
       }
       onSuccess();
     } catch (err: any) {
-      alert(err.message);
+      alert(err.response?.data?.detail || 'Failed to save transaction.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -461,8 +457,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
           <div className="flex gap-3 pt-4">
             <button type="button" onClick={onClose} className="flex-1 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-            <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-              {editingTransaction ? 'Update' : 'Save'}
+            <button type="submit" disabled={loading} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              {loading ? 'Saving...' : (editingTransaction ? 'Update' : 'Save')}
             </button>
           </div>
         </form>

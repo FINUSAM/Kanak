@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Group, Transaction, UserRole, TransactionType, Invitation } from '../types';
-import { getGroupById, getGroupTransactions, deleteTransaction, getGroupInvitations } from '../services/storage';
+import api from '../services/api';
 import { ArrowLeft, Plus, Users, FileDown } from 'lucide-react';
 import { generateGroupPDF } from '../utils/pdfGenerator';
 import { TransactionList } from './group/TransactionList';
@@ -30,24 +30,28 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [groupId]);
-
-  const loadData = () => {
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
-      const g = getGroupById(groupId, user.id);
-      setGroup(g);
-      if (g) {
-        setTransactions(getGroupTransactions(groupId, user.id));
-        setPendingInvites(getGroupInvitations(groupId));
-      }
+      const [groupRes, transactionsRes, invitesRes] = await Promise.all([
+        api.get(`/groups/${groupId}`),
+        api.get(`/groups/${groupId}/transactions`),
+        api.get(`/groups/${groupId}/invitations`),
+      ]);
+      setGroup(groupRes.data);
+      setTransactions(transactionsRes.data);
+      setPendingInvites(invitesRes.data);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.detail || 'Failed to load group data.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const calculateMemberStats = (memberId: string) => {
     let paid = 0;
@@ -97,13 +101,13 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
     setShowDeleteConfirm(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (transactionToDelete) {
       try {
-        deleteTransaction(transactionToDelete, user.id);
+        await api.delete(`/groups/${groupId}/transactions/${transactionToDelete}`);
         loadData();
       } catch (err: any) {
-        alert(err.message);
+        alert(err.response?.data?.detail || 'Failed to delete transaction.');
       }
       setShowDeleteConfirm(false);
       setTransactionToDelete(null);

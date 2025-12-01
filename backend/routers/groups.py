@@ -14,12 +14,21 @@ async def get_groups_for_current_user(current_user: User = Depends(get_current_u
 
 @router.post("/", response_model=Group, status_code=status.HTTP_201_CREATED)
 async def create_new_group(group: GroupCreate, current_user: User = Depends(get_current_user)):
+    # Check if group with same name already exists for the user
+    existing_group_query = groups.select().where(
+        (groups.c.name == group.name) & (groups.c.createdBy == current_user["id"])
+    )
+    if await database.fetch_one(existing_group_query):
+        raise HTTPException(status_code=400, detail="You already have a group with this name.")
+
+    group_id = str(uuid4())
     query = groups.insert().values(
+        id=group_id,
         name=group.name,
         description=group.description,
         createdBy=current_user["id"]
     )
-    group_id = await database.execute(query)
+    await database.execute(query)
     
     # Add the creator as the owner of the group
     member_query = members.insert().values(
@@ -30,12 +39,16 @@ async def create_new_group(group: GroupCreate, current_user: User = Depends(get_
     )
     await database.execute(member_query)
 
+    # Fetch the newly created group to get the actual createdAt timestamp from the DB
+    new_group_query = groups.select().where(groups.c.id == group_id)
+    new_group = await database.fetch_one(new_group_query)
+
     return {
-        "id": group_id,
-        "name": group.name,
-        "description": group.description,
-        "createdAt": "now", # this will be set by the db
-        "createdBy": current_user["id"],
+        "id": new_group["id"],
+        "name": new_group["name"],
+        "description": new_group["description"],
+        "createdAt": new_group["createdAt"],
+        "createdBy": new_group["createdBy"],
     }
 
 @router.get("/{groupId}", response_model=Group)
@@ -126,7 +139,9 @@ async def add_or_invite_member_to_group(groupId: str, member_data: MemberCreate,
 
         if not target_user:
             # User does not exist, create an invitation
+            invitation_id = str(uuid4())
             insert_invitation_query = invitations.insert().values(
+                id=invitation_id,
                 groupId=groupId,
                 groupName=group["name"],
                 inviterId=current_user["id"],

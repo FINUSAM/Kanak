@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { loginUser, registerUser } from '../services/storage';
+import api, { setAuthToken } from '../services/api';
 import { LogIn, UserPlus, Wallet, Lock } from 'lucide-react';
 
 interface AuthProps {
@@ -13,24 +13,68 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      setAuthToken(token);
+      api.get('/auth/users/me')
+        .then(response => {
+          onLogin(response.data);
+        })
+        .catch(() => {
+          localStorage.removeItem('authToken');
+          setAuthToken(null);
+        });
+    }
+  }, [onLogin]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     try {
-      if (!email || !password) throw new Error("Please fill in all fields");
-
       if (isLogin) {
-        const user = loginUser(email, password);
+        const formData = new URLSearchParams();
+        formData.append('username', email);
+        formData.append('password', password);
+        const { data } = await api.post('/auth/login', formData, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+
+        const token = data.access_token;
+        setAuthToken(token);
+        localStorage.setItem('authToken', token);
+
+        const { data: user } = await api.get('/auth/users/me');
         onLogin(user);
+
       } else {
-        if (!username) throw new Error('Username is required');
-        const user = registerUser(username, email, password);
-        // Auto login after register
+        await api.post('/auth/register', { username, email, password });
+        
+        const formData = new URLSearchParams();
+        formData.append('username', email);
+        formData.append('password', password);
+        const { data: loginData } = await api.post('/auth/login', formData, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        
+        const token = loginData.access_token;
+        setAuthToken(token);
+        localStorage.setItem('authToken', token);
+        
+        const { data: user } = await api.get('/auth/users/me');
         onLogin(user);
       }
     } catch (err: any) {
-      setError(err.message);
+      if (err.response && err.response.data && err.response.data.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,8 +154,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <button
             type="submit"
             className="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-lg shadow-indigo-200"
+            disabled={loading}
           >
-            {isLogin ? 'Sign In' : 'Create Account'}
+            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
           </button>
         </form>
       </div>

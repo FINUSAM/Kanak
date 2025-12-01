@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from models import Transaction, TransactionCreate, User, transactions, transaction_splits, members
 from typing import List
-from uuid import UUID
+from uuid import uuid4
 from database import database
 from security import get_current_user
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Transaction])
+@router.get("/{groupId}/transactions", response_model=List[Transaction])
 async def get_transactions_for_group(groupId: str, current_user: User = Depends(get_current_user)):
     # Check if user is a member of the group
     member_query = members.select().where(
@@ -28,7 +28,7 @@ async def get_transactions_for_group(groupId: str, current_user: User = Depends(
     
     return transactions_with_splits
 
-@router.post("/", response_model=Transaction, status_code=status.HTTP_201_CREATED)
+@router.post("/{groupId}/transactions", response_model=Transaction, status_code=status.HTTP_201_CREATED)
 async def add_transaction(groupId: str, transaction_data: TransactionCreate, current_user: User = Depends(get_current_user)):
     # Check if user is a member of the group
     member_query = members.select().where(
@@ -38,7 +38,9 @@ async def add_transaction(groupId: str, transaction_data: TransactionCreate, cur
         raise HTTPException(status_code=403, detail="Not authorized to add transactions to this group")
     
     # Insert transaction
+    transaction_id = str(uuid4())
     transaction_query = transactions.insert().values(
+        id=transaction_id,
         groupId=groupId,
         type=transaction_data.type,
         amount=transaction_data.amount,
@@ -49,7 +51,7 @@ async def add_transaction(groupId: str, transaction_data: TransactionCreate, cur
         payerId=transaction_data.payerId,
         splitMode=transaction_data.splitMode
     )
-    transaction_id = await database.execute(transaction_query)
+    await database.execute(transaction_query)
 
     # Insert splits
     split_values = []
@@ -72,7 +74,7 @@ async def add_transaction(groupId: str, transaction_data: TransactionCreate, cur
 
     return {**new_transaction_record, "splits": new_splits}
 
-@router.put("/{transactionId}", response_model=Transaction)
+@router.put("/{groupId}/transactions/{transactionId}", response_model=Transaction)
 async def update_transaction(groupId: str, transactionId: str, transaction_data: TransactionCreate, current_user: User = Depends(get_current_user)):
     # Check if user is a member of the group
     member_query = members.select().where(
@@ -123,7 +125,7 @@ async def update_transaction(groupId: str, transactionId: str, transaction_data:
 
     return {**updated_transaction_record, "splits": updated_splits}
 
-@router.delete("/{transactionId}", status_code=status.HTTP_200_OK)
+@router.delete("/{groupId}/transactions/{transactionId}", status_code=status.HTTP_200_OK)
 async def delete_transaction(groupId: str, transactionId: str, current_user: User = Depends(get_current_user)):
     # Check if user is a member of the group
     member_query = members.select().where(

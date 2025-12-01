@@ -13,7 +13,7 @@ interface TransactionListProps {
 export const TransactionList: React.FC<TransactionListProps> = ({ transactions, group, userRole, onEdit, onDelete }) => {
   const canEdit = [UserRole.OWNER, UserRole.ADMIN, UserRole.EDITOR].includes(userRole);
 
-  if (transactions.length === 0) {
+  if (!transactions || transactions.length === 0) {
     return (
       <div className="text-center py-12 bg-white rounded-xl border border-dashed">
         <p className="text-gray-500">No transactions recorded yet.</p>
@@ -32,8 +32,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
         const month = date.toLocaleString('default', { month: 'short' });
         const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        const involvedMembersNames = tx.involvedUserIds
-          .map(id => group.members.find(m => m.userId === id)?.username)
+        const involvedMembersNames = tx.splits
+          .map(split => group.members.find(m => m.userId === split.userId)?.username)
           .filter((name): name is string => !!name);
 
         const involvedText = involvedMembersNames.length > 0

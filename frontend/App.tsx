@@ -1,20 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { User } from './types';
-import { getSession, logoutUser } from './services/storage';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { GroupDetail } from './components/GroupDetail';
 import { ApiDocs } from './components/ApiDocs';
 import { LogOut, Wallet } from 'lucide-react';
+import api, { setAuthToken } from './services/api';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [showDocs, setShowDocs] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const session = getSession();
-    if (session) setUser(session);
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      setAuthToken(token);
+      api.get('/auth/users/me')
+        .then(response => {
+          setUser(response.data);
+        })
+        .catch(() => {
+          localStorage.removeItem('authToken');
+          setAuthToken(null);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const handleLogin = (newUser: User) => {
@@ -22,11 +36,16 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    logoutUser();
+    localStorage.removeItem('authToken');
+    setAuthToken(null);
     setUser(null);
     setActiveGroupId(null);
     setShowDocs(false);
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   if (!user) {
     return <Auth onLogin={handleLogin} />;

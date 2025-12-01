@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Group, Invitation } from '../types';
-import { getUserGroups, createGroup, getPendingInvitations, respondToInvitation } from '../services/storage';
+import api from '../services/api';
 import { Plus, Users, ArrowRight, FileJson, Mail, Check, X } from 'lucide-react';
 
 interface DashboardProps {
@@ -15,28 +15,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onSelectGroup, onVie
   const [showCreate, setShowCreate] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
-  const [refresh, setRefresh] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [groupsRes, invitationsRes] = await Promise.all([
+        api.get('/groups/'),
+        api.get('/invitations/')
+      ]);
+      setGroups(groupsRes.data);
+      setInvitations(invitationsRes.data);
+    } catch (err) {
+      setError('Failed to fetch data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setGroups(getUserGroups(user.id));
-    setInvitations(getPendingInvitations(user.id));
-  }, [user.id, showCreate, refresh]);
+    fetchData();
+  }, [fetchData]);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName) return;
-    createGroup(user, newGroupName, newGroupDesc);
-    setShowCreate(false);
-    setNewGroupName('');
-    setNewGroupDesc('');
+    try {
+      await api.post('/groups/', { name: newGroupName, description: newGroupDesc });
+      setShowCreate(false);
+      setNewGroupName('');
+      setNewGroupDesc('');
+      fetchData(); // Refresh data
+    } catch (err) {
+      setError('Failed to create group.');
+    }
   };
 
-  const handleInvitationResponse = (invitationId: string, accept: boolean) => {
+  const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
     try {
-        respondToInvitation(invitationId, accept);
-        setRefresh(prev => prev + 1); // Trigger refresh to move group from invites to active lists
+        await api.post(`/invitations/${invitationId}/respond`, { accept });
+        fetchData(); // Refresh data
     } catch (err) {
-        console.error(err);
+        setError('Failed to respond to invitation.');
     }
   };
 
@@ -55,6 +77,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onSelectGroup, onVie
             <Plus size={20} /> New Group
             </button>
         </div>
+        
+        {error && <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-200 mb-6">{error}</div>}
 
         {/* Invitations Section */}
         {invitations.length > 0 && (
@@ -142,7 +166,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onSelectGroup, onVie
         )}
 
         <h2 className="text-lg font-bold text-gray-900 mb-4">Your Groups</h2>
-        {groups.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-20"><p>Loading...</p></div>
+        ) : groups.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 border-dashed">
                 <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">You aren't in any groups yet.</p>
