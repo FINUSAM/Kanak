@@ -1,0 +1,27 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from routers import auth, groups, invitations, transactions
+
+app = FastAPI(
+    title="Kanak API",
+    version="1.1.0",
+    description="Backend API specification for Kanak, a group expense tracker with role-based access, invitation systems, and complex transaction splitting."
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(groups.router, prefix="/groups", tags=["Groups"])
+app.include_router(invitations.router, prefix="/invitations", tags=["Invitations"])
+app.include_router(transactions.router, prefix="/groups", tags=["Transactions"])
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Kanak API"}

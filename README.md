@@ -67,9 +67,14 @@ This guide will walk you through setting up and running the FastAPI backend.
 
 ## Running the Development Server
 
-1. **Start the development server:**
+1. **Navigate to the backend directory (if you are not already there):**
    ```bash
-   uvicorn backend.main:app --reload --port 3000
+   cd backend
+   ```
+
+2. **Start the development server:**
+   ```bash
+   uvicorn main:app --reload --port 3000
    ```
    This will start the FastAPI server on `http://localhost:3000`. The `--reload` flag will automatically restart the server when you make changes to the code.
 
