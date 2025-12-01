@@ -46,9 +46,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         const token = data.access_token;
         setAuthToken(token);
         localStorage.setItem('authToken', token);
-
-        const { data: user } = await api.get('/auth/users/me');
-        onLogin(user);
+        onLogin(data.user);
 
       } else {
         await api.post('/auth/register', { username, email, password });
@@ -63,9 +61,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         const token = loginData.access_token;
         setAuthToken(token);
         localStorage.setItem('authToken', token);
-        
-        const { data: user } = await api.get('/auth/users/me');
-        onLogin(user);
+        onLogin(loginData.user);
       }
     } catch (err: any) {
       if (err.response && err.response.data && err.response.data.detail) {

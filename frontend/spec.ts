@@ -11,7 +11,7 @@ export const openApiSpec = {
       "description": "Production Server"
     },
     {
-      "url": "http://localhost:3000/api",
+      "url": "http://localhost:8000",
       "description": "Local Development"
     }
   ],
@@ -32,6 +32,15 @@ export const openApiSpec = {
           "email": { "type": "string", "format": "email" }
         },
         "required": ["id", "username", "email"]
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string" },
+          "token_type": { "type": "string", "default": "bearer" },
+          "user": { "$ref": "#/components/schemas/User" }
+        },
+        "required": ["access_token", "token_type", "user"]
       },
       "UserRole": {
         "type": "string",
@@ -111,17 +120,13 @@ export const openApiSpec = {
           "createdBy": { "type": "string" },
           "createdById": { "type": "string", "format": "uuid" },
           "payerId": { "type": "string", "format": "uuid", "description": "ID of the user who actually paid or received the funds. Defaults to createdById." },
-          "involvedUserIds": {
-            "type": "array",
-            "items": { "type": "string", "format": "uuid" },
-            "description": "Deprecated. Use splits array to determine involved parties."
-          },
           "splitMode": { "$ref": "#/components/schemas/SplitMode" },
           "splits": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/TransactionSplit" }
           }
-        }
+        },
+        "required": ["id", "groupId", "type", "amount", "description", "date", "createdBy", "createdById", "payerId", "splitMode", "splits"]
       }
     }
   },
@@ -165,25 +170,36 @@ export const openApiSpec = {
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "application/x-www-form-urlencoded": {
               "schema": {
                 "type": "object",
                 "properties": {
-                  "email": { "type": "string", "format": "email" },
+                  "username": { "type": "string", "format": "email", "description": "User's email" },
                   "password": { "type": "string" }
                 },
-                "required": ["email", "password"]
+                "required": ["username", "password"]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Login successful (returns token in real impl)",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+            "description": "Login successful (returns token and user data)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Token" } } }
           },
           "404": { "description": "User not found" },
           "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/auth/users/me": {
+      "get": {
+        "summary": "Get current user",
+        "responses": {
+          "200": {
+            "description": "Current user data",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          }
         }
       }
     },
@@ -226,7 +242,7 @@ export const openApiSpec = {
     },
     "/groups": {
       "get": {
-        "summary": "Get groups for current user",
+        "summary": "Get groups for current user (created or joined)",
         "responses": {
           "200": {
             "description": "List of groups",
@@ -276,7 +292,7 @@ export const openApiSpec = {
     },
     "/groups/{groupId}/invitations": {
       "get": {
-        "summary": "Get pending invitations for a specific group (Admin only)",
+        "summary": "Get pending invitations for a specific group",
         "parameters": [
           { "name": "groupId", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -315,7 +331,7 @@ export const openApiSpec = {
         },
         "responses": {
           "200": {
-            "description": "Member added (or invited)",
+            "description": "Group with updated members or invitation sent",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Group" } } }
           }
         }
@@ -382,7 +398,20 @@ export const openApiSpec = {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Transaction"
+                "type": "object",
+                "properties": {
+                  "type": { "$ref": "#/components/schemas/TransactionType" },
+                  "amount": { "type": "number" },
+                  "description": { "type": "string" },
+                  "category": { "type": "string" },
+                  "payerId": { "type": "string", "format": "uuid" },
+                  "splitMode": { "$ref": "#/components/schemas/SplitMode" },
+                  "splits": { 
+                    "type": "array", 
+                    "items": { "$ref": "#/components/schemas/TransactionSplit" }
+                  }
+                },
+                "required": ["type", "amount", "description", "splitMode", "splits"]
               }
             }
           }

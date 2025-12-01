@@ -1,11 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from models import Transaction, TransactionCreate, User, transactions, transaction_splits, members
-from typing import List
-from uuid import uuid4
-from database import database
-from security import get_current_user
+async def authorize_transaction_creation(groupId: str, current_user: User):
+    member_query = members.select().where(
+        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+    )
+    member = await database.fetch_one(member_query)
+    if not member:
+        raise HTTPException(status_code=403, detail="Not authorized for this group.")
+    
+    if member["role"] not in [UserRole.OWNER, UserRole.ADMIN, UserRole.EDITOR, UserRole.CONTRIBUTOR]:
+        raise HTTPException(status_code=403, detail="Your role does not permit creating transactions.")
 
-router = APIRouter()
+async def authorize_transaction_modification(groupId: str, current_user: User):
+    member_query = members.select().where(
+        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+    )
+    member = await database.fetch_one(member_query)
+    if not member:
+        raise HTTPException(status_code=403, detail="Not authorized for this group.")
+    
+    if member["role"] not in [UserRole.OWNER, UserRole.ADMIN, UserRole.EDITOR]:
+        raise HTTPException(status_code=403, detail="Your role does not permit modifying transactions.")
 
 @router.get("/{groupId}/transactions", response_model=List[Transaction])
 async def get_transactions_for_group(groupId: str, current_user: User = Depends(get_current_user)):
@@ -28,14 +41,27 @@ async def get_transactions_for_group(groupId: str, current_user: User = Depends(
     
     return transactions_with_splits
 
+def validate_splits(transaction_data: TransactionCreate):
+    total_amount = transaction_data.amount
+    split_mode = transaction_data.splitMode
+    splits = transaction_data.splits
+
+    if not splits:
+        raise HTTPException(status_code=400, detail="Transaction must have at least one split.")
+
+    if split_mode == SplitMode.PERCENTAGE:
+        total_percentage = sum(s.percentage for s in splits if s.percentage is not None)
+        if abs(total_percentage - 100.0) > 0.01:
+            raise HTTPException(status_code=400, detail="Sum of percentages must be 100%.")
+    elif split_mode == SplitMode.AMOUNT:
+        total_split_amount = sum(s.amount for s in splits)
+        if abs(total_split_amount - total_amount) > 0.01:
+            raise HTTPException(status_code=400, detail="Sum of split amounts must equal total amount.")
+
 @router.post("/{groupId}/transactions", response_model=Transaction, status_code=status.HTTP_201_CREATED)
 async def add_transaction(groupId: str, transaction_data: TransactionCreate, current_user: User = Depends(get_current_user)):
-    # Check if user is a member of the group
-    member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
-    )
-    if not await database.fetch_one(member_query):
-        raise HTTPException(status_code=403, detail="Not authorized to add transactions to this group")
+    await authorize_transaction_creation(groupId, current_user)
+    validate_splits(transaction_data) # Validate splits
     
     # Insert transaction
     transaction_id = str(uuid4())
@@ -76,12 +102,7 @@ async def add_transaction(groupId: str, transaction_data: TransactionCreate, cur
 
 @router.put("/{groupId}/transactions/{transactionId}", response_model=Transaction)
 async def update_transaction(groupId: str, transactionId: str, transaction_data: TransactionCreate, current_user: User = Depends(get_current_user)):
-    # Check if user is a member of the group
-    member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
-    )
-    if not await database.fetch_one(member_query):
-        raise HTTPException(status_code=403, detail="Not authorized to update transactions in this group")
+    await authorize_transaction_modification(groupId, current_user)
     
     # Check if transaction exists and belongs to the group
     existing_transaction_query = transactions.select().where(
@@ -90,6 +111,8 @@ async def update_transaction(groupId: str, transactionId: str, transaction_data:
     if not await database.fetch_one(existing_transaction_query):
         raise HTTPException(status_code=404, detail="Transaction not found or does not belong to this group")
 
+    validate_splits(transaction_data) # Validate splits
+    
     # Update transaction
     update_transaction_query = transactions.update().where(transactions.c.id == transactionId).values(
         type=transaction_data.type,
@@ -127,12 +150,7 @@ async def update_transaction(groupId: str, transactionId: str, transaction_data:
 
 @router.delete("/{groupId}/transactions/{transactionId}", status_code=status.HTTP_200_OK)
 async def delete_transaction(groupId: str, transactionId: str, current_user: User = Depends(get_current_user)):
-    # Check if user is a member of the group
-    member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
-    )
-    if not await database.fetch_one(member_query):
-        raise HTTPException(status_code=403, detail="Not authorized to delete transactions from this group")
+    await authorize_transaction_modification(groupId, current_user)
 
     # Check if transaction exists and belongs to the group
     existing_transaction_query = transactions.select().where(

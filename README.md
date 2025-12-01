@@ -1,82 +1,71 @@
-# Frontend Setup
+# Kanak Expense Tracker
 
-This guide will walk you through setting up and running the frontend of the application.
+Kanak is a full-stack web application for group expense tracking.
 
-## Prerequisites
+## Setup & Running
 
-- Node.js and npm (or yarn) installed on your system.
+To get the application up and running, follow these steps:
 
-## Setup
+### 1. Backend Setup
 
-1. **Navigate to the frontend directory:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-## Running the Development Server
-
-1. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
-   This will start the Vite development server.
-
-2. **Open the application in your browser:**
-   Open your browser and navigate to the URL provided by Vite (usually `http://localhost:5173`).
-
-## Building for Production
-
-1. **Build the application:**
-   ```bash
-   npm run build
-   ```
-   This will create a `dist` directory in the `frontend` directory with the production-ready files.
-
-2. **Preview the production build:**
+1.  Navigate to the `backend/` directory:
     ```bash
-    npm run preview
+    cd backend
     ```
-    This will serve the production build locally.
+2.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  Run the backend server:
+    ```bash
+    uvicorn main:app --reload --port 8000
+    ```
+    The API will be available at `http://localhost:8000`. You can access the interactive API documentation (Swagger UI) at `http://localhost:8000/docs`.
 
----
+### 2. Frontend Setup
 
-# Backend Setup
+1.  Navigate to the `frontend/` directory:
+    ```bash
+    cd frontend
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Create a `.env` file in the `frontend/` directory with the following content:
+    ```
+    VITE_API_BASE_URL=http://localhost:8000/
+    ```
+4.  Run the frontend development server:
+    ```bash
+    npm run dev
+    ```
+    The frontend will be available at `http://localhost:3000`.
 
-This guide will walk you through setting up and running the FastAPI backend.
+## Role-Based Access Control (RBAC)
 
-## Prerequisites
+Kanak implements a permission system to control user actions within a group.
 
-- Python 3.9+ and pip installed on your system.
+| Role          | View Group Details & Transactions | Add Transactions | Edit/Delete Transactions | Add/Invite Members |
+| :------------ | :-------------------------------- | :--------------- | :----------------------- | :----------------- |
+| **OWNER**     | Yes                               | Yes              | Yes                      | Yes                |
+| **ADMIN**     | Yes                               | Yes              | Yes                      | Yes                |
+| **EDITOR**    | Yes                               | Yes              | Yes                      | No                 |
+| **CONTRIBUTOR** | Yes                               | Yes              | No                       | No                 |
+| **VIEWER**    | Yes                               | No               | No                       | No                 |
+| **GUEST**     | Yes                               | No               | No                       | No                 |
 
-## Setup
+**Role Descriptions:**
 
-1. **Navigate to the backend directory:**
-   ```bash
-   cd backend
-   ```
+*   **OWNER:** Has full control over the group, including managing transactions and members.
+*   **ADMIN:** Can manage transactions and members within the group.
+*   **EDITOR:** Can view group details and transactions, and can create, modify, or delete transactions. Cannot manage members.
+*   **CONTRIBUTOR:** Can view group details and transactions, and can *only add new transactions*. Cannot edit or delete existing transactions, nor can they manage members.
+*   **VIEWER:** Has read-only access to group data and transactions. Cannot make any modifications or manage members.
+*   **GUEST:** A virtual member with read-only access to group data and transactions. Cannot make any modifications or manage members.
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Development Notes
 
-## Running the Development Server
-
-1. **Navigate to the backend directory (if you are not already there):**
-   ```bash
-   cd backend
-   ```
-
-2. **Start the development server:**
-   ```bash
-   uvicorn main:app --reload --port 8000
-   ```
-   This will start the FastAPI server on `http://localhost:3000`. The `--reload` flag will automatically restart the server when you make changes to the code.
-
-2. **Access API Documentation:**
-   Open your browser and navigate to `http://localhost:3000/docs` to view the interactive API documentation (Swagger UI).
+*   **Frontend Technologies:** React, TypeScript, Vite, Tailwind CSS, Axios.
+*   **Backend Technologies:** FastAPI, Python, SQLAlchemy, Databases (for SQLite).
+*   **Authentication:** JWT-based.
