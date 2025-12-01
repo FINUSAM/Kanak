@@ -54,11 +54,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onSelectGroup, onVie
   };
 
   const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
+    console.log(`Responding to invitation ${invitationId}, accept: ${accept}`);
     try {
-        await api.post(`/invitations/${invitationId}/respond`, { accept });
+        const response = await api.post(`/invitations/${invitationId}/respond`, { accept });
+        console.log('API Response:', response.data);
         fetchData(); // Refresh data
-    } catch (err) {
-        setError('Failed to respond to invitation.');
+    } catch (err: any) {
+        console.error('Error responding to invitation:', err);
+        setError(err.response?.data?.detail || 'Failed to respond to invitation.');
     }
   };
 

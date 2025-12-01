@@ -10,8 +10,9 @@ router = APIRouter()
 @router.get("/", response_model=List[Invitation])
 async def get_pending_invitations(current_user: User = Depends(get_current_user)):
     query = invitations.select().where(
-        (invitations.c.inviteeId == current_user["id"]) |
-        (invitations.c.inviteeEmail == current_user["email"])
+        ((invitations.c.inviteeId == current_user["id"]) |
+        (invitations.c.inviteeEmail == current_user["email"])) &
+        (invitations.c.status == InvitationStatus.PENDING)
     )
     return await database.fetch_all(query)
 
@@ -28,6 +29,19 @@ async def respond_to_invitation(invitationId: str, response: InvitationRespond, 
         raise HTTPException(status_code=403, detail="Not authorized to respond to this invitation")
 
     if response.accept:
+        # Check if user is already a member
+        member_query = members.select().where(
+            (members.c.groupId == invitation_record["groupId"]) & (members.c.userId == current_user["id"])
+        )
+        if await database.fetch_one(member_query):
+            # User is already a member, just update invitation status
+            update_invitation_query = invitations.update().where(invitations.c.id == invitationId).values(
+                status=InvitationStatus.ACCEPTED,
+                inviteeId=current_user["id"]
+            )
+            await database.execute(update_invitation_query)
+            return {"message": "Invitation accepted. User is already a member of this group."}
+
         # Add user to group members
         insert_member_query = members.insert().values(
             userId=current_user["id"],

@@ -9,8 +9,19 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Group])
 async def get_groups_for_current_user(current_user: User = Depends(get_current_user)):
-    query = groups.select().where(groups.c.createdBy == current_user["id"])
-    return await database.fetch_all(query)
+    query = groups.select().where(groups.c.id.in_(
+        members.select().where(members.c.userId == current_user["id"]).with_only_columns(members.c.groupId)
+    ))
+    user_groups = await database.fetch_all(query)
+    
+    # For each group, fetch its members
+    groups_with_members = []
+    for group in user_groups:
+        members_query = members.select().where(members.c.groupId == group["id"])
+        group_members = await database.fetch_all(members_query)
+        groups_with_members.append({**group, "members": group_members})
+        
+    return groups_with_members
 
 @router.post("/", response_model=Group, status_code=status.HTTP_201_CREATED)
 async def create_new_group(group: GroupCreate, current_user: User = Depends(get_current_user)):
@@ -80,7 +91,10 @@ async def get_pending_invitations_for_group(groupId: str, current_user: User = D
     if not await database.fetch_one(member_query):
         raise HTTPException(status_code=403, detail="Not authorized to access this group's invitations")
     
-    query = invitations.select().where(invitations.c.groupId == groupId)
+    query = invitations.select().where(
+        (invitations.c.groupId == groupId) &
+        (invitations.c.status == InvitationStatus.PENDING)
+    )
     return await database.fetch_all(query)
 
 @router.post("/{groupId}/members", response_model=Group)
@@ -133,42 +147,41 @@ async def add_or_invite_member_to_group(groupId: str, member_data: MemberCreate,
 
     # Handle standard users (by email - identifier is email)
     else:
+        # Check if an invitation has already been sent to this email for this group
+        existing_invitation_query = invitations.select().where(
+            (invitations.c.groupId == groupId) & (invitations.c.inviteeEmail == member_data.identifier)
+        )
+        if await database.fetch_one(existing_invitation_query):
+            raise HTTPException(status_code=400, detail="An invitation has already been sent to this user for this group.")
+
         # Find existing user by email
         target_user_query = users.select().where(users.c.email == member_data.identifier)
         target_user = await database.fetch_one(target_user_query)
 
-        if not target_user:
-            # User does not exist, create an invitation
-            invitation_id = str(uuid4())
-            insert_invitation_query = invitations.insert().values(
-                id=invitation_id,
-                groupId=groupId,
-                groupName=group["name"],
-                inviterId=current_user["id"],
-                inviterName=current_user["username"],
-                inviteeEmail=member_data.identifier,
-                role=member_data.role,
-                status=InvitationStatus.PENDING
+        # Check if the target user is already a member of the group
+        if target_user:
+            existing_member_query = members.select().where(
+                (members.c.groupId == groupId) & (members.c.userId == target_user["id"])
             )
-            await database.execute(insert_invitation_query)
-            raise HTTPException(status_code=202, detail="User not found, invitation sent.")
-        
-        # User exists, check if already a member
-        existing_member_query = members.select().where(
-            (members.c.groupId == groupId) & (members.c.userId == target_user["id"])
-        )
-        if await database.fetch_one(existing_member_query):
-            raise HTTPException(status_code=400, detail="User is already a member of this group")
+            if await database.fetch_one(existing_member_query):
+                raise HTTPException(status_code=400, detail="This user is already a member of the group.")
 
-        # User exists and is not a member, add them directly
-        insert_member_query = members.insert().values(
-            userId=target_user["id"],
+        # Create an invitation
+        invitation_id = str(uuid4())
+        insert_invitation_query = invitations.insert().values(
+            id=invitation_id,
             groupId=groupId,
-            username=target_user["username"],
-            role=member_data.role
+            groupName=group["name"],
+            inviterId=current_user["id"],
+            inviterName=current_user["username"],
+            inviteeEmail=member_data.identifier,
+            inviteeId=target_user["id"] if target_user else None,
+            role=member_data.role,
+            status=InvitationStatus.PENDING
         )
-        await database.execute(insert_member_query)
-        # Fetch updated group with new member
+        await database.execute(insert_invitation_query)
+        
+        # Fetch updated group with current members (invitations are not members yet)
         updated_group_members_query = members.select().where(members.c.groupId == groupId)
         updated_group_members = await database.fetch_all(updated_group_members_query)
         return {**group, "members": updated_group_members}

@@ -69,7 +69,16 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       }
     } catch (err: any) {
       if (err.response && err.response.data && err.response.data.detail) {
-        setError(err.response.data.detail);
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          setError(detail);
+        } else if (Array.isArray(detail)) {
+          // Handle FastAPI validation errors
+          const errorMessages = detail.map(d => `${d.loc[1]}: ${d.msg}`).join('; ');
+          setError(errorMessages);
+        } else {
+          setError('An unexpected error occurred.');
+        }
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
