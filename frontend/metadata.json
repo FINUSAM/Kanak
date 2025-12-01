@@ -1,0 +1,5 @@
+{
+  "name": "v5 - Kanak with vulnerability fix & pdf design",
+  "description": "A smart group expense tracker with role-based access control.",
+  "requestFramePermissions": []
+}
