@@ -92,7 +92,6 @@ transactions = Table(
     Column("type", Enum(TransactionType)),
     Column("amount", Float),
     Column("description", String),
-    Column("category", String),
     Column("date", DateTime, server_default=func.now()),
     Column("createdBy", String),
     Column("createdById", sqlalchemy.String, ForeignKey("users.id")),
@@ -211,13 +210,15 @@ class TransactionBase(BaseModel):
     type: TransactionType
     amount: float
     description: str
-    category: Optional[str] = None
     payerId: str
     splitMode: SplitMode
     splits: List[TransactionSplitCreate]
 
 class TransactionCreate(TransactionBase):
     pass
+
+class TransactionUpdate(TransactionBase):
+    splits: Optional[List[TransactionSplitCreate]] = None
 
 class Transaction(TransactionBase):
     id: str

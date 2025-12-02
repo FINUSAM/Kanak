@@ -13,9 +13,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
 async def register_user(user: UserCreate):
-    query = users.select().where(users.c.email == user.email)
+    query = users.select().where((users.c.email == user.email) | (users.c.username == user.username))
     if await database.fetch_one(query):
-        raise HTTPException(status_code=400, detail="User already exists")
+        raise HTTPException(status_code=400, detail="Username or email already exists")
     
     user_id = str(uuid4())
     hashed_password = get_password_hash(user.password)

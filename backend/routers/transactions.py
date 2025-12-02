@@ -1,3 +1,13 @@
+from typing import List, Optional
+from uuid import uuid4
+from fastapi import APIRouter, Depends, HTTPException, status
+from database import database
+from models import User, UserRole, Transaction, TransactionCreate, TransactionSplitCreate, SplitMode, TransactionUpdate
+from models import transactions, members, transaction_splits
+from security import get_current_user
+
+router = APIRouter(tags=["transactions"])
+
 async def authorize_transaction_creation(groupId: str, current_user: User):
     member_query = members.select().where(
         (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
@@ -41,6 +51,28 @@ async def get_transactions_for_group(groupId: str, current_user: User = Depends(
     
     return transactions_with_splits
 
+@router.get("/{groupId}/transactions/{transactionId}", response_model=Transaction)
+async def get_transaction_by_id(groupId: str, transactionId: str, current_user: User = Depends(get_current_user)):
+    # Check if user is a member of the group
+    member_query = members.select().where(
+        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+    )
+    if not await database.fetch_one(member_query):
+        raise HTTPException(status_code=403, detail="Not authorized to view transactions for this group")
+
+    transaction_query = transactions.select().where(
+        (transactions.c.id == transactionId) & (transactions.c.groupId == groupId)
+    )
+    transaction_record = await database.fetch_one(transaction_query)
+
+    if not transaction_record:
+        raise HTTPException(status_code=404, detail="TransactionNotFound")
+
+    splits_query = transaction_splits.select().where(transaction_splits.c.transactionId == transactionId)
+    splits = await database.fetch_all(splits_query)
+    
+    return {**transaction_record, "splits": splits}
+
 def validate_splits(transaction_data: TransactionCreate):
     total_amount = transaction_data.amount
     split_mode = transaction_data.splitMode
@@ -71,7 +103,6 @@ async def add_transaction(groupId: str, transaction_data: TransactionCreate, cur
         type=transaction_data.type,
         amount=transaction_data.amount,
         description=transaction_data.description,
-        category=transaction_data.category,
         createdBy=current_user["username"],
         createdById=current_user["id"],
         payerId=transaction_data.payerId,
@@ -101,7 +132,7 @@ async def add_transaction(groupId: str, transaction_data: TransactionCreate, cur
     return {**new_transaction_record, "splits": new_splits}
 
 @router.put("/{groupId}/transactions/{transactionId}", response_model=Transaction)
-async def update_transaction(groupId: str, transactionId: str, transaction_data: TransactionCreate, current_user: User = Depends(get_current_user)):
+async def update_transaction(groupId: str, transactionId: str, transaction_data: TransactionUpdate, current_user: User = Depends(get_current_user)):
     await authorize_transaction_modification(groupId, current_user)
     
     # Check if transaction exists and belongs to the group
@@ -109,7 +140,7 @@ async def update_transaction(groupId: str, transactionId: str, transaction_data:
         (transactions.c.id == transactionId) & (transactions.c.groupId == groupId)
     )
     if not await database.fetch_one(existing_transaction_query):
-        raise HTTPException(status_code=404, detail="Transaction not found or does not belong to this group")
+        raise HTTPException(status_code=404, detail="TransactionNotFound")
 
     validate_splits(transaction_data) # Validate splits
     
@@ -118,7 +149,6 @@ async def update_transaction(groupId: str, transactionId: str, transaction_data:
         type=transaction_data.type,
         amount=transaction_data.amount,
         description=transaction_data.description,
-        category=transaction_data.category,
         payerId=transaction_data.payerId,
         splitMode=transaction_data.splitMode
     )
@@ -157,7 +187,7 @@ async def delete_transaction(groupId: str, transactionId: str, current_user: Use
         (transactions.c.id == transactionId) & (transactions.c.groupId == groupId)
     )
     if not await database.fetch_one(existing_transaction_query):
-        raise HTTPException(status_code=404, detail="Transaction not found or does not belong to this group")
+        raise HTTPException(status_code=404, detail="TransactionNotFound")
     
     # Delete splits first
     delete_splits_query = transaction_splits.delete().where(transaction_splits.c.transactionId == transactionId)
