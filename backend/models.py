@@ -143,6 +143,10 @@ class GroupBase(BaseModel):
 class GroupCreate(GroupBase):
     pass
 
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
 class Group(GroupBase):
     id: str
     createdAt: datetime
@@ -157,6 +161,9 @@ class MemberBase(BaseModel):
 
 class MemberCreate(MemberBase):
     identifier: str # Email for standard users, Name for GUEST
+
+class MemberUpdate(BaseModel):
+    role: UserRole
 
 class Member(MemberBase):
     userId: str

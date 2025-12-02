@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from database import database
-from models import groups, members, Group, GroupCreate, User, Invitation, MemberCreate, InvitationStatus, UserRole, users, invitations, transactions, transaction_splits
+from models import groups, members, Group, GroupCreate, GroupUpdate, User, Invitation, MemberCreate, MemberUpdate, InvitationStatus, UserRole, users, invitations, transactions, transaction_splits
 from security import get_current_user
 from uuid import uuid4
 
@@ -229,4 +229,81 @@ async def delete_group(groupId: str, current_user: User = Depends(get_current_us
     # Finally, delete the group
     delete_group_query = groups.delete().where(groups.c.id == groupId)
     await database.execute(delete_group_query)
+
+@router.put("/{groupId}", response_model=Group)
+async def update_group(groupId: str, group_data: GroupUpdate, current_user: User = Depends(get_current_user)):
+    # Check if group exists
+    group_query = groups.select().where(groups.c.id == groupId)
+    group = await database.fetch_one(group_query)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    # Check if current user is the OWNER
+    member_query = members.select().where(
+        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+    )
+    member = await database.fetch_one(member_query)
+    if not member or member["role"] != UserRole.OWNER:
+        raise HTTPException(status_code=403, detail="Only the group owner can edit the group.")
+
+    # Update group data
+    update_data = group_data.dict(exclude_unset=True)
+    update_query = groups.update().where(groups.c.id == groupId).values(**update_data)
+    await database.execute(update_query)
+
+    # Fetch and return the updated group
+    updated_group_query = groups.select().where(groups.c.id == groupId)
+    updated_group = await database.fetch_one(updated_group_query)
+
+    members_query = members.select().where(members.c.groupId == groupId)
+    group_members = await database.fetch_all(members_query)
+
+    return {**updated_group, "members": group_members}
+
+@router.put("/{groupId}/members/{memberId}", response_model=Group)
+async def update_member_role(groupId: str, memberId: str, member_data: MemberUpdate, current_user: User = Depends(get_current_user)):
+    # Check if group exists
+    group_query = groups.select().where(groups.c.id == groupId)
+    group = await database.fetch_one(group_query)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    # Check if current user is OWNER or ADMIN
+    current_user_member_query = members.select().where(
+        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+    )
+    current_user_member = await database.fetch_one(current_user_member_query)
+    if not current_user_member or current_user_member["role"] not in [UserRole.OWNER, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Only group owners and admins can edit member roles.")
+
+    # Check if target member exists
+    target_member_query = members.select().where(
+        (members.c.groupId == groupId) & (members.c.userId == memberId)
+    )
+    target_member = await database.fetch_one(target_member_query)
+    if not target_member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    # Prevent changing OWNER role
+    if target_member["role"] == UserRole.OWNER:
+        raise HTTPException(status_code=400, detail="Cannot change the role of the group owner.")
+
+    # Prevent user from editing their own role
+    if current_user["id"] == memberId:
+        raise HTTPException(status_code=400, detail="You cannot edit your own role.")
+
+    # Update member role
+    update_query = members.update().where(
+        (members.c.groupId == groupId) & (members.c.userId == memberId)
+    ).values(role=member_data.role)
+    await database.execute(update_query)
+
+    # Fetch and return the updated group
+    updated_group_query = groups.select().where(groups.c.id == groupId)
+    updated_group = await database.fetch_one(updated_group_query)
+
+    members_query = members.select().where(members.c.groupId == groupId)
+    group_members = await database.fetch_all(members_query)
+
+    return {**updated_group, "members": group_members}
 

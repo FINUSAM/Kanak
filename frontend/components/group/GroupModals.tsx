@@ -103,6 +103,75 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({ isOpen, onClose,
   );
 };
 
+// --- Edit Group Modal ---
+interface EditGroupModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  group: Group;
+  onSuccess: () => void;
+}
+
+export const EditGroupModal: React.FC<EditGroupModalProps> = ({ isOpen, onClose, group, onSuccess }) => {
+  const [name, setName] = useState(group.name);
+  const [description, setDescription] = useState(group.description || '');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await api.put(`/groups/${group.id}`, { name, description });
+      onSuccess();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to update group.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+        <h2 className="text-xl font-bold mb-4 text-gray-900">Edit Group</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Group Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-white text-gray-900 border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full bg-white text-gray-900 border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              rows={3}
+            />
+          </div>
+
+          {error && <div className="text-red-500 text-sm mt-2 font-medium">{error}</div>}
+
+          <div className="flex gap-3 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 // --- Delete Confirmation Modal ---
 interface DeleteConfirmModalProps {
   isOpen: boolean;

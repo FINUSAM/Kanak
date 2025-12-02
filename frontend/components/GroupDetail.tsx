@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Group, Transaction, UserRole, TransactionType, Invitation } from '../types';
 import api from '../services/api';
-import { ArrowLeft, Plus, Users, FileDown, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Users, FileDown, Trash2, Pencil } from 'lucide-react';
 import { generateGroupPDF } from '../utils/pdfGenerator';
 import { TransactionList } from './group/TransactionList';
 import { MemberList } from './group/MemberList';
 import { TransactionModal } from './group/TransactionModal';
-import { AddMemberModal, DeleteConfirmModal, ExportModal } from './group/GroupModals';
+import { AddMemberModal, DeleteConfirmModal, ExportModal, EditGroupModal } from './group/GroupModals';
 
 interface GroupDetailProps {
   user: User;
@@ -30,6 +30,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -136,6 +137,11 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
     loadData();
   };
 
+  const handleGroupUpdate = () => {
+    setShowEditGroupModal(false);
+    loadData();
+  };
+
   const handleExport = (from: string, to: string) => {
     if (group) {
       generateGroupPDF(group, transactions, from, to);
@@ -182,6 +188,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
             >
               <Trash2 size={16} />
               <span className="hidden sm:inline">Delete Group</span>
+            </button>
+          )}
+          {currentUserRole === UserRole.OWNER && (
+            <button
+              onClick={() => setShowEditGroupModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm font-medium"
+              title="Edit Group"
+            >
+              <Pencil size={16} />
+              <span className="hidden sm:inline">Edit Group</span>
             </button>
           )}
           {canAdd && (
@@ -233,6 +249,8 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
             userRole={currentUserRole}
             onAddMember={() => setShowAddMember(true)}
             calculateStats={calculateMemberStats}
+            onSuccess={loadData}
+            currentUserId={user.id}
           />
         )}
       </div>
@@ -275,6 +293,13 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         onExport={handleExport}
+      />
+
+      <EditGroupModal
+        isOpen={showEditGroupModal}
+        onClose={() => setShowEditGroupModal(false)}
+        group={group}
+        onSuccess={handleGroupUpdate}
       />
     </div>
   );

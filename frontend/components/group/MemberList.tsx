@@ -1,6 +1,7 @@
 import React from 'react';
 import { Group, Invitation, UserRole } from '../../types';
 import { User as UserIcon, Clock } from 'lucide-react';
+import api from '../../services/api';
 
 interface MemberListProps {
   group: Group;
@@ -8,9 +9,63 @@ interface MemberListProps {
   userRole: UserRole;
   onAddMember: () => void;
   calculateStats: (memberId: string) => { paid: number; received: number; balance: number };
+  onSuccess: () => void;
+  currentUserId: string;
 }
 
-export const MemberList: React.FC<MemberListProps> = ({ group, pendingInvites, userRole, onAddMember, calculateStats }) => {
+const RoleDropdown: React.FC<{
+  member: Group['members'][0];
+  canManage: boolean;
+  currentUserId: string;
+  groupId: string;
+  onSuccess: () => void;
+}> = ({ member, canManage, currentUserId, groupId, onSuccess }) => {
+  const isOwner = member.role === UserRole.OWNER;
+  const isSelf = member.userId === currentUserId;
+
+  const handleRoleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newRole = e.target.value as UserRole;
+    if (window.confirm(`Are you sure you want to change ${member.username}'s role to ${newRole}?`)) {
+      try {
+        await api.put(`/groups/${groupId}/members/${member.userId}`, { role: newRole });
+        onSuccess();
+      } catch (error: any) {
+        alert(error.response?.data?.detail || 'Failed to update role.');
+      }
+    }
+  };
+
+  if (!canManage || isSelf) {
+    return (
+      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase
+        ${member.role === UserRole.OWNER ? 'bg-purple-100 text-purple-700' :
+          member.role === UserRole.ADMIN ? 'bg-blue-100 text-blue-700' :
+            member.role === UserRole.GUEST ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+        {member.role === UserRole.GUEST ? 'VIRTUAL' : member.role}
+      </span>
+    );
+  }
+
+  return (
+    <select
+      value={member.role}
+      onChange={handleRoleChange}
+      disabled={isOwner}
+      className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase border-none outline-none appearance-none cursor-pointer
+        ${isOwner ? 'bg-purple-100 text-purple-700' :
+          'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+    >
+      {Object.values(UserRole).map(r => (
+        <option key={r} value={r} disabled={r === UserRole.OWNER}>
+          {r}
+        </option>
+      ))}
+    </select>
+  );
+};
+
+export const MemberList: React.FC<MemberListProps> = ({ group, pendingInvites, userRole, onAddMember, calculateStats, onSuccess, currentUserId }) => {
   const canManageMembers = [UserRole.OWNER, UserRole.ADMIN].includes(userRole);
 
   return (
@@ -39,12 +94,13 @@ export const MemberList: React.FC<MemberListProps> = ({ group, pendingInvites, u
                 <div>
                   <p className="font-medium text-gray-900">{member.username}</p>
                   <div className="flex gap-2 items-center mt-1">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase
-                                        ${member.role === UserRole.OWNER ? 'bg-purple-100 text-purple-700' :
-                        member.role === UserRole.ADMIN ? 'bg-blue-100 text-blue-700' :
-                          member.role === UserRole.GUEST ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {member.role === UserRole.GUEST ? 'VIRTUAL' : member.role}
-                    </span>
+                    <RoleDropdown 
+                      member={member}
+                      canManage={canManageMembers}
+                      currentUserId={currentUserId}
+                      groupId={group.id}
+                      onSuccess={onSuccess}
+                    />
                   </div>
                 </div>
               </div>
