@@ -7,3 +7,5 @@ python-multipart
 sqlalchemy
 databases[sqlite]
 psycopg2-binary
+asyncpg
+python-dotenv
