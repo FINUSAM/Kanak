@@ -47,7 +47,8 @@ async def respond_to_invitation(invitationId: str, response: InvitationRespond, 
             userId=current_user["id"],
             groupId=invitation_record["groupId"],
             username=current_user["username"],
-            role=invitation_record["role"]
+            role=invitation_record["role"],
+            isActive=True
         )
         await database.execute(insert_member_query)
 

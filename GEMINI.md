@@ -133,6 +133,20 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
     *   Migrated from in-memory storage to a SQLite database.
     *   Implemented JWT authentication.
     *   Refactored all API endpoints to be database-driven.
+    *   Added `GET` endpoint for a single transaction by ID in `backend/routers/transactions.py`.
+    *   Updated `PUT` and `DELETE` transaction endpoints to use "TransactionNotFound" detail message in `backend/routers/transactions.py`.
+    *   Removed `category` field from `Transaction` models and database schema.
+    *   Fixed `NameError` by adding missing imports in `backend/routers/transactions.py`.
+    *   Fixed `sqlite3.IntegrityError: UNIQUE constraint failed: users.username` by adding checks for existing username/email during registration.
+    *   Fixed `CORSMiddleware` configuration to allow `http://127.0.0.1:3000`.
+    *   Added `PUT /groups/{groupId}` endpoint to update group name and description (for owners only).
+    *   Added `isActive` column to `members` table for soft deletion.
+    *   Implemented `PUT /groups/{groupId}/members/{memberId}` endpoint to update member roles (for owners/admins).
+    *   Implemented "replace with guest" functionality for member removal and leaving group:
+        *   `PUT /groups/{groupId}/members/{memberId}/replace-with-guest`: Replaces a removed member with a guest, reassigns transactions. Prevents removing OWNER or GUEST roles.
+        *   `POST /groups/{groupId}/leave`: Allows a user to leave, replaces them with a guest, and reassigns transactions. Prevents OWNER from leaving.
+        *   Fixed `NameError` and `UNIQUE constraint failed: users.username` by correctly defining variables and making guest usernames truly unique in the `users` table.
+    *   Updated `get_groups_for_current_user` and `get_group_details` to filter by `isActive=True` to only show active members.
     *   **Fixed numerous bugs and implemented missing functionalities:**
         *   `IntegrityError` when creating users, groups, and transactions (by explicitly generating UUIDs).
         *   `ResponseValidationError` when creating groups and sending invitations (by ensuring correct response models are returned).
@@ -146,6 +160,14 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
 *   **Frontend:**
     *   Refactored the entire frontend to connect to the new backend API.
     *   Removed the old `localStorage`-based mock backend.
+    *   Added "Delete Group" button and functionality (for owners only).
+    *   Made `DeleteConfirmModal` reusable with `title` and `message` props.
+    *   Added "Edit Group" button and modal functionality (for owners only).
+    *   Implemented "Edit Member Role" functionality with `RoleDropdown` (for owners/admins).
+    *   Added "Remove Member" button and confirmation (for owners/admins).
+    *   Added "Leave Group" button and confirmation (for non-owners).
+    *   Fixed `currentUserRole` calculation in `GroupDetail.tsx` using `useMemo`.
+    *   Hid "Remove" button for `GUEST` members in `MemberList.tsx`.
     *   **Fixed several bugs and implemented missing functionalities:**
         *   `TypeError` in `TransactionList.tsx` (by using `tx.splits` and adding array checks).
         *   CORS errors (by updating `CORSMiddleware` in backend).

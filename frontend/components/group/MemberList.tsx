@@ -11,6 +11,7 @@ interface MemberListProps {
   calculateStats: (memberId: string) => { paid: number; received: number; balance: number };
   onSuccess: () => void;
   currentUserId: string;
+  onRemove: (memberId: string) => void;
 }
 
 const RoleDropdown: React.FC<{
@@ -65,7 +66,7 @@ const RoleDropdown: React.FC<{
   );
 };
 
-export const MemberList: React.FC<MemberListProps> = ({ group, pendingInvites, userRole, onAddMember, calculateStats, onSuccess, currentUserId }) => {
+export const MemberList: React.FC<MemberListProps> = ({ group, pendingInvites, userRole, onAddMember, calculateStats, onSuccess, currentUserId, onRemove }) => {
   const canManageMembers = [UserRole.OWNER, UserRole.ADMIN].includes(userRole);
 
   return (
@@ -105,7 +106,7 @@ export const MemberList: React.FC<MemberListProps> = ({ group, pendingInvites, u
                 </div>
               </div>
 
-              {/* Financial Stats */}
+              {/* Financial Stats & Actions */}
               <div className="flex flex-1 items-center justify-between sm:justify-end gap-2 sm:gap-8 bg-gray-50 sm:bg-transparent p-3 sm:p-0 rounded-lg">
                 <div className="text-center sm:text-right">
                   <p className="text-[10px] uppercase text-gray-400 font-semibold tracking-wider">Paid</p>
@@ -123,6 +124,19 @@ export const MemberList: React.FC<MemberListProps> = ({ group, pendingInvites, u
                     {stats.balance >= 0 ? '+' : ''}{stats.balance.toFixed(2)}
                   </p>
                 </div>
+                {canManageMembers && member.role !== UserRole.OWNER && member.role !== UserRole.GUEST && member.userId !== currentUserId && (
+                  <div className="w-px h-6 bg-gray-200 hidden sm:block"></div>
+                )}
+                {canManageMembers && member.role !== UserRole.OWNER && member.role !== UserRole.GUEST && member.userId !== currentUserId && (
+                  <div>
+                    <button
+                      onClick={() => onRemove(member.userId)}
+                      className="text-red-500 hover:text-red-700 text-xs font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )

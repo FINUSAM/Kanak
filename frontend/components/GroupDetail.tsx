@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { User, Group, Transaction, UserRole, TransactionType, Invitation } from '../types';
 import api from '../services/api';
-import { ArrowLeft, Plus, Users, FileDown, Trash2, Pencil } from 'lucide-react';
+import { ArrowLeft, Plus, Users, FileDown, Trash2, Pencil, LogOut } from 'lucide-react';
 import { generateGroupPDF } from '../utils/pdfGenerator';
 import { TransactionList } from './group/TransactionList';
 import { MemberList } from './group/MemberList';
@@ -31,6 +31,9 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+  const [showLeaveGroupConfirm, setShowLeaveGroupConfirm] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -90,7 +93,10 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
     return { paid, received, balance };
   };
 
-  const currentUserRole = group?.members.find(m => m.userId === user.id)?.role || UserRole.VIEWER;
+  const currentUserRole = useMemo(() => {
+    return group?.members.find(m => m.userId === user.id)?.role || UserRole.VIEWER;
+  }, [group, user.id]);
+  
   const canAdd = [UserRole.OWNER, UserRole.ADMIN, UserRole.EDITOR, UserRole.CONTRIBUTOR].includes(currentUserRole);
 
   const handleEditTransaction = (tx: Transaction) => {
@@ -142,6 +148,34 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
     loadData();
   };
 
+  const handleRemoveMemberRequest = (memberId: string) => {
+    setMemberToRemove(memberId);
+    setShowRemoveMemberConfirm(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (memberToRemove) {
+      try {
+        await api.put(`/groups/${groupId}/members/${memberToRemove}/replace-with-guest`);
+        loadData();
+      } catch (err: any) {
+        alert(err.response?.data?.detail || 'Failed to remove member.');
+      }
+      setShowRemoveMemberConfirm(false);
+      setMemberToRemove(null);
+    }
+  };
+
+  const confirmLeaveGroup = async () => {
+    try {
+      await api.post(`/groups/${groupId}/leave`);
+      onBack();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to leave group.');
+    }
+    setShowLeaveGroupConfirm(false);
+  };
+
   const handleExport = (from: string, to: string) => {
     if (group) {
       generateGroupPDF(group, transactions, from, to);
@@ -180,6 +214,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
             <FileDown size={16} />
             <span className="hidden sm:inline">Export</span>
           </button>
+          {currentUserRole !== UserRole.OWNER && (
+            <button
+              onClick={() => setShowLeaveGroupConfirm(true)}
+              className="flex items-center gap-2 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm text-sm font-medium"
+              title="Leave Group"
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Leave Group</span>
+            </button>
+          )}
           {currentUserRole === UserRole.OWNER && (
             <button
               onClick={() => setShowDeleteGroupConfirm(true)}
@@ -251,6 +295,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
             calculateStats={calculateMemberStats}
             onSuccess={loadData}
             currentUserId={user.id}
+            onRemove={handleRemoveMemberRequest}
           />
         )}
       </div>
@@ -300,6 +345,22 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
         onClose={() => setShowEditGroupModal(false)}
         group={group}
         onSuccess={handleGroupUpdate}
+      />
+
+      <DeleteConfirmModal
+        isOpen={showRemoveMemberConfirm}
+        onClose={() => setShowRemoveMemberConfirm(false)}
+        onConfirm={confirmRemoveMember}
+        title="Remove Member?"
+        message="Are you sure you want to remove this member? Their past transactions will remain in the group's history."
+      />
+
+      <DeleteConfirmModal
+        isOpen={showLeaveGroupConfirm}
+        onClose={() => setShowLeaveGroupConfirm(false)}
+        onConfirm={confirmLeaveGroup}
+        title="Leave Group?"
+        message="Are you sure you want to leave this group? Your past transactions will remain in the group's history."
       />
     </div>
   );

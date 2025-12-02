@@ -7,6 +7,7 @@ from sqlalchemy import (
     String,
     Table,
     create_engine,
+    Boolean,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
@@ -67,6 +68,7 @@ members = Table(
     Column("username", String, nullable=False),
     Column("role", Enum(UserRole), nullable=False),
     Column("joinedAt", DateTime, server_default=func.now()),
+    Column("isActive", Boolean, server_default="true", nullable=False),
 )
 
 invitations = Table(
