@@ -147,6 +147,8 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
         *   `POST /groups/{groupId}/leave`: Allows a user to leave, replaces them with a guest, and reassigns transactions. Prevents OWNER from leaving.
         *   Fixed `NameError` and `UNIQUE constraint failed: users.username` by correctly defining variables and making guest usernames truly unique in the `users` table.
     *   Updated `get_groups_for_current_user` and `get_group_details` to filter by `isActive=True` to only show active members.
+    *   Fixed `IndentationError` in `backend/routers/groups.py` when adding guest users.
+    *   Ensured unique guest usernames when adding a guest member to a group to prevent `UNIQUE constraint failed`.
     *   **Fixed numerous bugs and implemented missing functionalities:**
         *   `IntegrityError` when creating users, groups, and transactions (by explicitly generating UUIDs).
         *   `ResponseValidationError` when creating groups and sending invitations (by ensuring correct response models are returned).
@@ -168,6 +170,11 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
     *   Added "Leave Group" button and confirmation (for non-owners).
     *   Fixed `currentUserRole` calculation in `GroupDetail.tsx` using `useMemo`.
     *   Hid "Remove" button for `GUEST` members in `MemberList.tsx`.
+    *   Implemented settlement calculation logic in `frontend/utils/pdfGenerator.ts` to display "Member A owes X to Member B" before the transaction table in the PDF.
+    *   Updated PDF generation in `frontend/utils/pdfGenerator.ts` to display transaction date and time in separate columns (`MM/DD/YYYY` and `h:mmA` format respectively) and prevent word wrap in date/time columns.
+    *   Corrected the header definition in `pdfGenerator.ts` to accurately reflect the 'Date', 'Time', 'Description', and member columns.
+    *   Adjusted alignment for the total section in the PDF by refining `didParseCell` logic and `totalRow` construction to correctly align numeric totals under member columns.
+    *   Improved frontend error handling in `frontend/services/api.ts` to display specific backend error messages (from `error.response.data.detail`) instead of generic "network error" when an API response is received.
     *   **Fixed several bugs and implemented missing functionalities:**
         *   `TypeError` in `TransactionList.tsx` (by using `tx.splits` and adding array checks).
         *   CORS errors (by updating `CORSMiddleware` in backend).

@@ -134,9 +134,10 @@ async def add_or_invite_member_to_group(groupId: str, member_data: MemberCreate,
         # Create a dummy user entry for the guest (no password, no real email)
         dummy_user_id = str(uuid4()) # Generate a new UUID for the guest user
         dummy_email = f"{member_data.identifier.replace(' ', '_').lower()}@{groupId}.guest"
+        unique_guest_username = f"{member_data.identifier.replace(' ', '_').lower()}-{str(uuid4())[:8]}"
         insert_dummy_user_query = users.insert().values(
             id=dummy_user_id,
-            username=member_data.identifier,
+            username=unique_guest_username,
             email=dummy_email,
             hashed_password="" # No password for guest
         )

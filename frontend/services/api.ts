@@ -30,20 +30,43 @@ api.interceptors.response.use(
     }
 
     // Display other API errors globally
-    if (error.response && error.response.data && error.response.data.detail) {
-      const detail = error.response.data.detail;
-      if (typeof detail === 'string') {
-        showGlobalError(detail);
-      } else if (Array.isArray(detail)) {
-        const errorMessages = detail.map((d: any) => `${d.loc[1]}: ${d.msg}`).join('; ');
-        showGlobalError(errorMessages);
+    if (error.response) {
+      if (error.response.data && error.response.data.detail) {
+        const detail = error.response.data.detail;
+        if (typeof detail === 'string') {
+          showGlobalError(detail);
+        } else if (Array.isArray(detail)) {
+          const errorMessages = detail.map((d: any) => `${d.loc[1]}: ${d.msg}`).join('; ');
+          showGlobalError(errorMessages);
+        } else {
+          // If detail exists but is not a string or array, try using the entire data object if it's a string
+          if (typeof error.response.data === 'string') {
+            showGlobalError(error.response.data);
+          } else {
+            showGlobalError('An unexpected API error occurred (check console for details).');
+            console.error('API Error Response Data:', error.response.data);
+          }
+        }
+      } else if (error.response.data) {
+        // If data exists but no 'detail' field, try to display the data directly if it's a string
+        if (typeof error.response.data === 'string') {
+          showGlobalError(error.response.data);
+        } else {
+          showGlobalError('An unexpected API error occurred (no detail field, check console).');
+          console.error('API Error Response Data (no detail):', error.response.data);
+        }
       } else {
-        showGlobalError('An unexpected API error occurred.');
+        // If response exists but no data object
+        showGlobalError(`API Error: Status ${error.response.status} ${error.response.statusText}`);
       }
-    } else if (error.message) {
-      showGlobalError(`Network Error: ${error.message}`);
+    } else if (error.request) {
+      // The request was made but no response was received (e.g., network down, CORS issue)
+      showGlobalError('Network Error: Could not connect to the server.');
+      console.error('Network Error - No response:', error.request);
     } else {
-      showGlobalError('An unknown error occurred.');
+      // Something happened in setting up the request that triggered an Error
+      showGlobalError(`Request Error: ${error.message}`);
+      console.error('Request setup error:', error.message);
     }
     
     return Promise.reject(error);

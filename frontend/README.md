@@ -32,8 +32,10 @@ Kanak is a smart, role-based group expense tracking application designed to simp
   - **Paid**: Total contribution to the group (Outflow).
   - **Received**: Total value consumed/split share (Inflow).
   - **Net Balance**: The difference. Green (+) means you are owed money; Red (-) means you owe the group.
+- **Settlement Suggestions**: Displays clear "who owes whom" lines before the transaction table in the PDF, minimizing individual transactions.
 - **Matrix-Style PDF Reports**: 
   - Generates a professional **Matrix Ledger** PDF.
+  - Includes `MM/DD/YYYY` date and `h:mmA` time in separate columns for each transaction, with no word wrap.
   - Columns for every member showing their specific **Net Impact** per transaction.
   - Color-coded cells (Green for positive/get back, Red for negative/owe).
   - Includes a **Total Balance Footer** summarizing the final standing of every member for the selected date range.
@@ -42,7 +44,7 @@ Kanak is a smart, role-based group expense tracking application designed to simp
 ### ✅ Real-time Validation
 - **Instant Feedback**: The app validates inputs as you type.
 - **Tally Checks**: Ensures split amounts equal the total transaction value.
-- **Error Handling**: Prevents saving invalid states (e.g., negative numbers, missing participants).
+- **Error Handling**: Prevents saving invalid states (e.g., negative numbers, missing participants). Improved to display specific backend error messages when available, instead of generic "network error".
 
 ### 🛡️ Role-Based Access Control (RBAC)
 Kanak implements a strict permission system:
@@ -61,7 +63,7 @@ Kanak implements a strict permission system:
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **PDF Generation**: jsPDF, jsPDF-AutoTable
-- **Mock Backend**: LocalStorage-based service layer simulating RESTful operations.
+
 
 ## Roles Matrix
 
