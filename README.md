@@ -16,7 +16,11 @@ To get the application up and running, follow these steps:
     ```bash
     pip install -r requirements.txt
     ```
-3.  Run the backend server:
+3.  Create a `.env` file in the `backend/` directory with the database connection string:
+    ```
+    DATABASE_URL=postgresql://xxxxxxx.pooler.supabase.com:5432/postgres
+    ```
+4.  Run the backend server:
     ```bash
     uvicorn main:app --reload --port 8000
     ```
