@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from database import database
-from models import groups, members, Group, GroupCreate, User, Invitation, MemberCreate, InvitationStatus, UserRole, users, invitations
+from models import groups, members, Group, GroupCreate, User, Invitation, MemberCreate, InvitationStatus, UserRole, users, invitations, transactions, transaction_splits
 from security import get_current_user
 from uuid import uuid4
 
@@ -181,7 +181,52 @@ async def add_or_invite_member_to_group(groupId: str, member_data: MemberCreate,
         )
         await database.execute(insert_invitation_query)
         
-        # Fetch updated group with current members (invitations are not members yet)
         updated_group_members_query = members.select().where(members.c.groupId == groupId)
         updated_group_members = await database.fetch_all(updated_group_members_query)
         return {**group, "members": updated_group_members}
+
+@router.delete("/{groupId}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_group(groupId: str, current_user: User = Depends(get_current_user)):
+    # Check if group exists
+    group_query = groups.select().where(groups.c.id == groupId)
+    group = await database.fetch_one(group_query)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    # Check if current user is the OWNER
+    member_query = members.select().where(
+        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+    )
+    member = await database.fetch_one(member_query)
+    if not member or member["role"] != UserRole.OWNER:
+        raise HTTPException(status_code=403, detail="Only the group owner can delete the group.")
+
+    # Delete associated data
+    # Note: Foreign key constraints should handle cascading deletes if set up properly in the DB schema.
+    # However, to be explicit and safe, we delete from child tables first.
+
+    # Get all transaction IDs for the group
+    transactions_in_group_query = transactions.select().where(transactions.c.groupId == groupId).with_only_columns(transactions.c.id)
+    transaction_ids = [row[0] for row in await database.fetch_all(transactions_in_group_query)]
+
+    if transaction_ids:
+        # Delete from transaction_splits
+        delete_splits_query = transaction_splits.delete().where(transaction_splits.c.transactionId.in_(transaction_ids))
+        await database.execute(delete_splits_query)
+
+        # Delete from transactions
+        delete_transactions_query = transactions.delete().where(transactions.c.id.in_(transaction_ids))
+        await database.execute(delete_transactions_query)
+    
+    # Delete from invitations
+    delete_invitations_query = invitations.delete().where(invitations.c.groupId == groupId)
+    await database.execute(delete_invitations_query)
+    
+    # Delete from members
+    delete_members_query = members.delete().where(members.c.groupId == groupId)
+    await database.execute(delete_members_query)
+
+    # Finally, delete the group
+    delete_group_query = groups.delete().where(groups.c.id == groupId)
+    await database.execute(delete_group_query)
+

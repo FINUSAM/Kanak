@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User, Group, Transaction, UserRole, TransactionType, Invitation } from '../types';
 import api from '../services/api';
-import { ArrowLeft, Plus, Users, FileDown } from 'lucide-react';
+import { ArrowLeft, Plus, Users, FileDown, Trash2 } from 'lucide-react';
 import { generateGroupPDF } from '../utils/pdfGenerator';
 import { TransactionList } from './group/TransactionList';
 import { MemberList } from './group/MemberList';
@@ -29,6 +29,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -114,6 +115,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
     }
   };
 
+  const confirmDeleteGroup = async () => {
+    try {
+      await api.delete(`/groups/${groupId}`);
+      onBack();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to delete group.');
+    }
+    setShowDeleteGroupConfirm(false);
+  };
+
   const handleTxSuccess = () => {
     setShowAddTx(false);
     setEditingTx(null);
@@ -163,6 +174,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
             <FileDown size={16} />
             <span className="hidden sm:inline">Export</span>
           </button>
+          {currentUserRole === UserRole.OWNER && (
+            <button
+              onClick={() => setShowDeleteGroupConfirm(true)}
+              className="flex items-center gap-2 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm text-sm font-medium"
+              title="Delete Group"
+            >
+              <Trash2 size={16} />
+              <span className="hidden sm:inline">Delete Group</span>
+            </button>
+          )}
           {canAdd && (
             <button
               onClick={() => { setEditingTx(null); setShowAddTx(true); }}
@@ -238,6 +259,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ user, groupId, onBack 
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={confirmDelete}
+        title="Delete Transaction?"
+        message="Are you sure you want to remove this transaction? This action cannot be undone."
+      />
+
+      <DeleteConfirmModal
+        isOpen={showDeleteGroupConfirm}
+        onClose={() => setShowDeleteGroupConfirm(false)}
+        onConfirm={confirmDeleteGroup}
+        title="Delete Group"
+        message="Are you sure you want to delete this group? This action is irreversible and will delete all associated transactions and members."
       />
 
       <ExportModal

@@ -108,9 +108,17 @@ interface DeleteConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  title?: string;
+  message?: string;
 }
 
-export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ isOpen, onClose, onConfirm }) => {
+export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = 'Delete Item?',
+  message = 'Are you sure you want to remove this item? This action cannot be undone.'
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -119,8 +127,8 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ isOpen, 
         <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
           <AlertTriangle className="h-6 w-6 text-red-600" />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Transaction?</h3>
-        <p className="text-sm text-gray-500 mb-6">Are you sure you want to remove this transaction? This action cannot be undone.</p>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+        <p className="text-sm text-gray-500 mb-6">{message}</p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -132,7 +140,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ isOpen, 
             onClick={onConfirm}
             className="flex-1 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium"
           >
-            Delete
+            Confirm
           </button>
         </div>
       </div>
