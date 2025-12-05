@@ -69,6 +69,7 @@ Kanak is a full-stack web application for group expense tracking. This document 
 *   Expense splitting
 *   Data visualization (with `recharts`)
 *   PDF report generation (with `jspdf`)
+*   Add to Home Screen (A2HS) for PWA support
 
 ## Key Files and Their Roles
 

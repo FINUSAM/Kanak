@@ -181,6 +181,6 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
         *   Improved error handling in `Auth.tsx` for API validation errors.
         *   Implemented **Global Error Handling** using React Context to display API errors.
         *   Updated `Auth.tsx` to retrieve user data directly from the login response.
-        *   Removed unused `API_KEY` and `GEMINI_API_KEY` environment variables from `vite.config.ts`.
+        *   Implemented "Add to Home Screen" (A2HS) functionality for PWA support.
 
 This document should provide a solid foundation for any new Gemini instance to understand and contribute to the Kanak project.
