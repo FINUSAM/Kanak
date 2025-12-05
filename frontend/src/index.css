@@ -20,12 +20,12 @@
 
 /* Add to home screen styles */
 #addToHomeScreenContainer {
-  transform: translateY(200%);
+  transform: translate(-50%, 200%);
   transition: transform 0.4s ease-in-out;
 }
 
 #addToHomeScreenContainer.show {
-  transform: translateY(0);
+  transform: translate(-50%, 0);
 }
 
 .btn-close:focus, .btn-dark:focus {
