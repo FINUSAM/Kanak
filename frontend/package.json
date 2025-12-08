@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.86.2",
     "axios": "^1.7.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",

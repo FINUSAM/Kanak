@@ -6,6 +6,7 @@ import { GroupDetail } from './components/GroupDetail';
 import { ApiDocs } from './components/ApiDocs';
 import { LogOut, Wallet } from 'lucide-react';
 import api, { setAuthToken } from './services/api';
+import { supabase } from './services/supabase'; // Import Supabase client
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -14,33 +15,63 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      setAuthToken(token);
-      api.get('/auth/users/me')
-        .then(response => {
-          setUser(response.data);
-        })
-        .catch(() => {
-          localStorage.removeItem('authToken');
+    // Supabase auth state listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          // Set Supabase token for API calls
+          setAuthToken(session.access_token);
+          // Sync user with our backend
+          try {
+            const { data: syncedUser } = await api.post('/auth/sync', {}); // Pass empty body for POST request
+            setUser(syncedUser);
+          } catch (error) {
+            console.error('Error syncing user with backend:', error);
+            // Handle error, e.g., show a message or sign out from Supabase
+            await supabase.auth.signOut();
+            setUser(null);
+            setAuthToken(null);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
           setAuthToken(null);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, []);
+          setActiveGroupId(null);
+          setShowDocs(false);
+        }
+        setLoading(false);
+      }
+    );
 
-  const handleLogin = (newUser: User) => {
-    setUser(newUser);
-  };
+    // Check for existing session on initial load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setAuthToken(session.access_token);
+        // Also sync user with backend if session already exists on load
+        api.post('/auth/sync', {}).then(response => {
+          setUser(response.data);
+        }).catch(error => {
+          console.error('Error syncing user on initial load:', error);
+          supabase.auth.signOut();
+        }).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    setAuthToken(null);
-    setUser(null);
-    setActiveGroupId(null);
-    setShowDocs(false);
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []); // Empty dependency array means this runs once on mount
+
+  // handleLogin is no longer needed as Auth component doesn't emit login event directly
+  // const handleLogin = (newUser: User) => {
+  //   setUser(newUser);
+  // };
+
+  const handleLogout = async () => {
+    // Supabase handles token removal and session invalidation
+    await supabase.auth.signOut();
+    // The onAuthStateChange listener will handle updating the state (setUser(null) etc.)
   };
 
   if (loading) {
@@ -48,7 +79,8 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    return <Auth onLogin={handleLogin} />;
+    // No onLogin prop needed for Auth component anymore
+    return <Auth /* onLogin={handleLogin} */ />;
   }
 
   if (showDocs) {

@@ -22,7 +22,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       console.error('Unauthorized access - redirecting to login');
       // Optionally, clear token and redirect to login page
-      localStorage.removeItem('authToken');
+      // localStorage.removeItem('authToken'); // Removed as Supabase manages token storage
       setAuthToken(null);
       // window.location.href = '/'; // Redirect to home/login
       showGlobalError('Session expired or unauthorized. Please log in again.');

@@ -47,7 +47,8 @@ users = Table(
     Column("id", sqlalchemy.String, primary_key=True, default=lambda: str(uuid4())),
     Column("username", String, unique=True, nullable=False),
     Column("email", String, unique=True, nullable=False),
-    Column("hashed_password", String, nullable=False),
+    Column("hashed_password", String, nullable=True),
+    Column("supabase_user_id", String, unique=True, nullable=True, index=True),
 )
 
 groups = Table(
@@ -116,18 +117,21 @@ transaction_splits = Table(
 class UserBase(BaseModel):
     username: str
     email: EmailStr
+    supabase_user_id: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
 
 class User(UserBase):
     id: str
+    supabase_user_id: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 class UserInDB(User):
-    hashed_password: str
+    hashed_password: Optional[str] = None
+    supabase_user_id: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

@@ -77,7 +77,13 @@ Kanak is a full-stack web application for group expense tracking. It allows user
 ### Architecture
 
 *   **Database:** The backend uses a SQLite database (`kanak.db`). The database connection is managed in `database.py`. The database schema is defined in `models.py` using SQLAlchemy's declarative syntax.
-*   **Authentication:** Authentication is handled via JWT. The `/auth/login` endpoint returns a JWT token, which is then used to authenticate subsequent requests. The `security.py` file contains helper functions for password hashing, token creation, and getting the current user from a token.
+*   **Authentication:** The application has migrated to using **Supabase** for authentication.
+    *   The frontend uses the Supabase client to handle Google OAuth2 sign-in.
+    *   Upon successful login, Supabase issues an `RS256`-signed JWT to the frontend.
+    *   The frontend sends this JWT to the FastAPI backend with every authenticated request.
+    *   The backend validates the JWT's signature against the public keys (JWKS) provided by the Supabase project's public endpoint (`/auth/v1/.well-known/jwks.json`).
+    *   A new `/auth/sync` endpoint creates or updates the user in the local SQLite database after a successful login, keeping the local user store in sync with Supabase's auth records.
+    *   The old email/password registration and login endpoints (`/auth/register`, `/auth/login`) are no longer used by the frontend.
 *   **API Structure:** The API is built with FastAPI and is organized into routers for `auth`, `groups`, `invitations`, and `transactions`. The API routes and data models are based on the OpenAPI specification provided in `frontend/spec.ts`.
 
 ## Frontend Setup & Architecture
@@ -93,11 +99,16 @@ Kanak is a full-stack web application for group expense tracking. It allows user
 *   **API Interaction:** The frontend uses the `axios` library to make API calls to the backend. A central `api.ts` service is used to configure the base URL and authentication headers.
 *   **Component Structure:** The application is built with React components, organized by feature. Key components include `Auth.tsx`, `Dashboard.tsx`, and `GroupDetail.tsx`.
 *   **State Management:** Component-level state is managed with React hooks (`useState`, `useEffect`). There is no global state management library like Redux or Zustand.
-*   **Authentication Flow:** The `Auth.tsx` component handles user login and registration. Upon successful login, the JWT token is stored in `localStorage` and set in the `axios` headers for all subsequent requests. The `App.tsx` component checks for the token on startup to maintain the user's session.
+*   **Authentication Flow:** The application uses the Supabase client library (`@supabase/supabase-js`) to manage authentication.
+    *   The `Auth.tsx` component displays a "Sign in with Google" button which initiates the Supabase OAuth flow.
+    *   After the user authenticates with Google, Supabase redirects back to the app.
+    *   A global listener in `App.tsx` (`supabase.auth.onAuthStateChange`) detects the `SIGNED_IN` event.
+    *   Upon sign-in, the frontend sets the Supabase JWT in the `axios` authorization headers and calls the backend's `/auth/sync` endpoint to create or update the user's profile in the local database.
+    *   The Supabase client handles the storage and refreshing of the session.
 
 ## Key Features Implemented
 
-*   User registration and login
+*   User authentication via Google Sign-In (Supabase)
 *   JWT-based authentication
 *   Database persistence with SQLite
 *   Group creation and management
@@ -129,6 +140,9 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
 
 ## Recent Changes & Fixes
 
+*   **Migrated Authentication to Supabase Google Sign-In:**
+    *   **Backend:** Replaced self-managed JWT authentication with a system that validates `RS256` JWTs issued by Supabase. This involved adding a JWKS fetching mechanism and a new `/auth/sync` endpoint to "upsert" user data into the local database.
+    *   **Frontend:** Replaced the email/password login and registration forms with a "Sign in with Google" button that uses the `@supabase/supabase-js` client. The application now relies on Supabase's `onAuthStateChange` listener for session management.
 *   **Backend:**
     *   Migrated from in-memory storage to a SQLite database.
     *   Implemented JWT authentication.

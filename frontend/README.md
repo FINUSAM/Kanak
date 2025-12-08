@@ -5,8 +5,8 @@ Kanak is a smart, role-based group expense tracking application designed to simp
 ## Features
 
 ### 🔐 Authentication & Security
-- **Secure Registration & Login**: Email and password-based authentication.
-- **Session Management**: Persistent user sessions.
+- **Google Sign-In**: Secure authentication provided by Supabase, allowing users to log in with their Google accounts.
+- **Session Management**: Handled via Supabase, with JWTs used to communicate with the backend.
 
 ### 👥 Group Management
 - **Create Groups**: Users can create unlimited groups for different occasions (e.g., "Trip to Paris", "Apartment Expenses").
@@ -77,10 +77,10 @@ Kanak implements a strict permission system:
 
 ## Getting Started
 
-1. **Register**: Create an account.
+1. **Sign In**: Use the "Sign in with Google" button to authenticate.
 2. **Create Group**: Start a new group from the dashboard.
 3. **Add Members**: 
-   - **Invite**: Enter email to send an invite to a registered user.
+   - **Invite**: Enter an email address to send an invitation.
    - **Add Guest**: Enter a name to add a virtual member instantly.
-4. **Track**: Add transactions, select payer (You or Others), select split modes, and view real-time balances.
+4. **Track**: Add transactions, select the payer (You or Others), choose a split mode, and view real-time balances.
 5. **Export**: Use the Export button to download the Matrix Ledger PDF.

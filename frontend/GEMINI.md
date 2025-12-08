@@ -13,6 +13,7 @@ Kanak is a full-stack web application for group expense tracking. This document 
 *   **Language:** TypeScript
 *   **Styling:** Tailwind CSS (inferred from class names)
 *   **API Client:** Axios
+*   **Authentication:** Supabase Client (`@supabase/supabase-js`)
 *   **UI Components:** `lucide-react` for icons
 *   **Charting:** `recharts`
 *   **PDF Generation:** `jspdf`
@@ -43,19 +44,19 @@ Kanak is a full-stack web application for group expense tracking. This document 
 │       ├── GroupModals.tsx
 │       ├── MemberList.tsx
 │       └── TransactionModal.tsx
-│       └── TopSpendersChart.tsx (to be added)
 ├── contexts/
 │   └── GlobalErrorContext.tsx
 ├── node_modules/...
 ├── services/
-│   └── api.ts
+│   ├── api.ts
+│   └── supabase.ts
 └── utils/
     └── pdfGenerator.ts
 ```
 
 ## Frontend Architecture
 
-*   **Core Component:** `App.tsx` acts as the central controller, managing authentication state (`user`) and active group (`activeGroupId`). It uses conditional rendering for "routing" between `Auth`, `Dashboard`, and `GroupDetail` views.
+*   **Core Component:** `App.tsx` acts as the central controller. It uses the `supabase.auth.onAuthStateChange` listener to manage the global authentication state. When a user signs in, it calls the backend's `/auth/sync` endpoint and then populates the `user` state, which controls the view rendering between `Auth`, `Dashboard`, and `GroupDetail`.
 *   **State Management:** Primarily component-level state with React hooks. Global error handling is managed via `GlobalErrorContext`. Data flow generally follows the 'lift state up' pattern.
 *   **API Interaction:** `services/api.ts` centralizes all backend communication. It configures a global `axios` instance, injects authentication tokens, and includes an interceptor for global error handling, displaying messages via `GlobalErrorContext`.
 *   **Error Handling:** `contexts/GlobalErrorContext.tsx` provides a sophisticated global error handling mechanism, allowing both React components and non-React modules (like `api.ts`) to trigger UI error notifications.
@@ -63,7 +64,7 @@ Kanak is a full-stack web application for group expense tracking. This document 
 
 ## Key Features
 
-*   User authentication (login/registration)
+*   User authentication via Google Sign-In (Supabase)
 *   Group creation and management
 *   Transaction creation, editing, and deletion
 *   Expense splitting
@@ -73,8 +74,9 @@ Kanak is a full-stack web application for group expense tracking. This document 
 
 ## Key Files and Their Roles
 
-*   **`App.tsx`**: Central application controller, handles authentication, core state, and view rendering.
+*   **`App.tsx`**: Central application controller. Manages global auth state via the `supabase.auth.onAuthStateChange` listener, handles user synchronization with the backend, and controls view rendering.
 *   **`services/api.ts`**: Centralized API client with `axios`, authentication token injection, and global error interceptor.
+*   **`services/supabase.ts`**: Initializes and exports the global Supabase client instance.
 *   **`contexts/GlobalErrorContext.tsx`**: Implements global error handling for UI display, accessible by React and non-React modules.
 *   **`components/Dashboard.tsx`**: Main view for authenticated users, handles data fetching and group management.
 *   **`components/GroupDetail.tsx`**: Displays details for a specific group, including transactions and members. This is where the new `TopSpendersChart` will be integrated.

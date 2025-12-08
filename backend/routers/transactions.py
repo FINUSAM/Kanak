@@ -10,7 +10,7 @@ router = APIRouter(tags=["transactions"])
 
 async def authorize_transaction_creation(groupId: str, current_user: User):
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     member = await database.fetch_one(member_query)
     if not member:
@@ -21,7 +21,7 @@ async def authorize_transaction_creation(groupId: str, current_user: User):
 
 async def authorize_transaction_modification(groupId: str, current_user: User):
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     member = await database.fetch_one(member_query)
     if not member:
@@ -34,7 +34,7 @@ async def authorize_transaction_modification(groupId: str, current_user: User):
 async def get_transactions_for_group(groupId: str, current_user: User = Depends(get_current_user)):
     # Check if user is a member of the group
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     if not await database.fetch_one(member_query):
         raise HTTPException(status_code=403, detail="Not authorized to view transactions for this group")
@@ -55,7 +55,7 @@ async def get_transactions_for_group(groupId: str, current_user: User = Depends(
 async def get_transaction_by_id(groupId: str, transactionId: str, current_user: User = Depends(get_current_user)):
     # Check if user is a member of the group
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     if not await database.fetch_one(member_query):
         raise HTTPException(status_code=403, detail="Not authorized to view transactions for this group")
@@ -103,8 +103,8 @@ async def add_transaction(groupId: str, transaction_data: TransactionCreate, cur
         type=transaction_data.type,
         amount=transaction_data.amount,
         description=transaction_data.description,
-        createdBy=current_user["username"],
-        createdById=current_user["id"],
+        createdBy=current_user.username,
+        createdById=current_user.id,
         payerId=transaction_data.payerId,
         splitMode=transaction_data.splitMode
     )

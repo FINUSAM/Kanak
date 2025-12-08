@@ -1,83 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import api, { setAuthToken } from '../services/api';
-import { LogIn, UserPlus, Wallet, Lock } from 'lucide-react';
+// Removed api import and setAuthToken as they are no longer directly used here
+// import api, { setAuthToken } from '../services/api';
+import { Wallet } from 'lucide-react'; // Keep Wallet icon for branding
+import { supabase } from '../services/supabase'; // Import Supabase client
 
 interface AuthProps {
-  onLogin: (user: User) => void;
+  onLogin: (user: User) => void; // onLogin will now be called by App.tsx
 }
 
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Can be used for Google button loading state
 
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      setAuthToken(token);
-      api.get('/auth/users/me')
-        .then(response => {
-          onLogin(response.data);
-        })
-        .catch(() => {
-          localStorage.removeItem('authToken');
-          setAuthToken(null);
-        });
-    }
-  }, [onLogin]);
+  // Removed old useEffect for token check
+  // Removed isLogin, email, password, username states as they are not needed for Google OAuth form
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
     try {
-      if (isLogin) {
-        const formData = new URLSearchParams();
-        formData.append('username', email);
-        formData.append('password', password);
-        const { data } = await api.post('/auth/login', formData, {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        });
+      // Initiate Google OAuth flow
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin, // Redirects back to your app's origin
+        },
+      });
 
-        const token = data.access_token;
-        setAuthToken(token);
-        localStorage.setItem('authToken', token);
-        onLogin(data.user);
-
-      } else {
-        await api.post('/auth/register', { username, email, password });
-        
-        const formData = new URLSearchParams();
-        formData.append('username', email);
-        formData.append('password', password);
-        const { data: loginData } = await api.post('/auth/login', formData, {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        });
-        
-        const token = loginData.access_token;
-        setAuthToken(token);
-        localStorage.setItem('authToken', token);
-        onLogin(loginData.user);
+      if (error) {
+        setError(error.message);
       }
+      // Supabase handles the redirect, so no further code here for successful login
     } catch (err: any) {
-      if (err.response && err.response.data && err.response.data.detail) {
-        const detail = err.response.data.detail;
-        if (typeof detail === 'string') {
-          setError(detail);
-        } else if (Array.isArray(detail)) {
-          // Handle FastAPI validation errors
-          const errorMessages = detail.map(d => `${d.loc[1]}: ${d.msg}`).join('; ');
-          setError(errorMessages);
-        } else {
-          setError('An unexpected error occurred.');
-        }
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
+      setError(err.message || 'An unexpected error occurred during Google sign-in.');
     } finally {
       setLoading(false);
     }
@@ -94,76 +50,28 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <p className="text-gray-500 mt-2 text-center">Manage group expenses easily.</p>
         </div>
 
-        <div className="flex mb-6 bg-gray-100 p-1 rounded-lg">
-          <button
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setIsLogin(true)}
-          >
-            Log In
-          </button>
-          <button
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${!isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setIsLogin(false)}
-          >
-            Register
-          </button>
-        </div>
+        {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-100 mb-4">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-              <div className="relative">
-                 <UserPlus className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                 <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors placeholder-gray-400"
-                    placeholder="John Doe"
-                />
-              </div>
-            </div>
+        <button
+          onClick={handleGoogleSignIn}
+          className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2.5 rounded-lg hover:bg-gray-50 font-medium transition-colors shadow-sm"
+          disabled={loading}
+        >
+          {loading ? (
+            <span className="flex items-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Signing in...
+            </span>
+          ) : (
+            <>
+              <img src="https://www.svgrepo.com/show/303108/google-icon-logo.svg" alt="Google logo" className="h-5 w-5 mr-3" />
+              Sign in with Google
+            </>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-             <div className="relative">
-                 <LogIn className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors placeholder-gray-400"
-                    placeholder="name@example.com"
-                    required
-                />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-             <div className="relative">
-                 <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors placeholder-gray-400"
-                    placeholder="••••••••"
-                    required
-                />
-            </div>
-          </div>
-
-          {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-100">{error}</div>}
-
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-lg shadow-indigo-200"
-            disabled={loading}
-          >
-            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
-          </button>
-        </form>
+        </button>
       </div>
     </div>
   );

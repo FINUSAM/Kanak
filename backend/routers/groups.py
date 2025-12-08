@@ -11,7 +11,7 @@ router = APIRouter()
 async def get_groups_for_current_user(current_user: User = Depends(get_current_user)):
     query = groups.select().where(groups.c.id.in_(
         members.select().where(
-            (members.c.userId == current_user["id"]) & (members.c.isActive == True)
+            (members.c.userId == current_user.id) & (members.c.isActive == True)
         ).with_only_columns(members.c.groupId)
     ))
     user_groups = await database.fetch_all(query)
@@ -29,7 +29,7 @@ async def get_groups_for_current_user(current_user: User = Depends(get_current_u
 async def create_new_group(group: GroupCreate, current_user: User = Depends(get_current_user)):
     # Check if group with same name already exists for the user
     existing_group_query = groups.select().where(
-        (groups.c.name == group.name) & (groups.c.createdBy == current_user["id"])
+        (groups.c.name == group.name) & (groups.c.createdBy == current_user.id)
     )
     if await database.fetch_one(existing_group_query):
         raise HTTPException(status_code=400, detail="You already have a group with this name.")
@@ -39,15 +39,15 @@ async def create_new_group(group: GroupCreate, current_user: User = Depends(get_
         id=group_id,
         name=group.name,
         description=group.description,
-        createdBy=current_user["id"]
+        createdBy=current_user.id
     )
     await database.execute(query)
     
     # Add the creator as the owner of the group
     member_query = members.insert().values(
-        userId=current_user["id"],
+        userId=current_user.id,
         groupId=group_id,
-        username=current_user["username"],
+        username=current_user.username,
         role="OWNER",
         isActive=True
     )
@@ -58,7 +58,7 @@ async def create_new_group(group: GroupCreate, current_user: User = Depends(get_
     new_group = await database.fetch_one(new_group_query)
 
     new_member_query = members.select().where(
-        (members.c.groupId == group_id) & (members.c.userId == current_user["id"])
+        (members.c.groupId == group_id) & (members.c.userId == current_user.id)
     )
     new_member = await database.fetch_one(new_member_query)
 
@@ -80,7 +80,7 @@ async def get_group_details(groupId: str, current_user: User = Depends(get_curre
 
     # Check if the current user is a member of the group
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     if not await database.fetch_one(member_query):
         raise HTTPException(status_code=403, detail="Not authorized to access this group")
@@ -95,7 +95,7 @@ async def get_group_details(groupId: str, current_user: User = Depends(get_curre
 async def get_pending_invitations_for_group(groupId: str, current_user: User = Depends(get_current_user)):
     # Check if user is a member of the group
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     if not await database.fetch_one(member_query):
         raise HTTPException(status_code=403, detail="Not authorized to access this group's invitations")
@@ -116,7 +116,7 @@ async def add_or_invite_member_to_group(groupId: str, member_data: MemberCreate,
 
     # Check if current user has permission to add/invite members (e.g., ADMIN or OWNER)
     current_user_member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     current_user_member = await database.fetch_one(current_user_member_query)
     if not current_user_member or current_user_member["role"] not in ["OWNER", "ADMIN"]:
@@ -183,8 +183,8 @@ async def add_or_invite_member_to_group(groupId: str, member_data: MemberCreate,
             id=invitation_id,
             groupId=groupId,
             groupName=group["name"],
-            inviterId=current_user["id"],
-            inviterName=current_user["username"],
+            inviterId=current_user.id,
+            inviterName=current_user.username,
             inviteeEmail=member_data.identifier,
             inviteeId=target_user["id"] if target_user else None,
             role=member_data.role,
@@ -206,7 +206,7 @@ async def delete_group(groupId: str, current_user: User = Depends(get_current_us
 
     # Check if current user is the OWNER
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     member = await database.fetch_one(member_query)
     if not member or member["role"] != UserRole.OWNER:
@@ -251,7 +251,7 @@ async def update_group(groupId: str, group_data: GroupUpdate, current_user: User
 
     # Check if current user is the OWNER
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     member = await database.fetch_one(member_query)
     if not member or member["role"] != UserRole.OWNER:
@@ -283,7 +283,7 @@ async def replace_member_with_guest(groupId: str, memberId: str, current_user: U
 
     # Authorize action: only OWNER or ADMIN
     current_user_member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     current_user_member = await database.fetch_one(current_user_member_query)
     if not current_user_member or current_user_member["role"] not in [UserRole.OWNER, UserRole.ADMIN]:
@@ -298,7 +298,7 @@ async def replace_member_with_guest(groupId: str, memberId: str, current_user: U
         raise HTTPException(status_code=404, detail="Member not found")
 
     # Prevent removing self, owner, or guest
-    if current_user["id"] == memberId:
+    if current_user.id == memberId:
         raise HTTPException(status_code=400, detail="You cannot remove yourself from the group.")
     if target_member["role"] == UserRole.OWNER:
         raise HTTPException(status_code=400, detail="Cannot remove the group owner.")
@@ -378,7 +378,7 @@ async def leave_group(groupId: str, current_user: User = Depends(get_current_use
 
     # Check if user is a member
     member_query = members.select().where(
-        (members.c.groupId == groupId) & (members.c.userId == current_user["id"])
+        (members.c.groupId == groupId) & (members.c.userId == current_user.id)
     )
     member = await database.fetch_one(member_query)
     if not member or not member["isActive"]:
@@ -389,7 +389,7 @@ async def leave_group(groupId: str, current_user: User = Depends(get_current_use
         raise HTTPException(status_code=400, detail="The group owner cannot leave the group. You can delete the group instead.")
 
     # --- Start Replacement Process ---
-    original_user_id = current_user["id"]
+    original_user_id = current_user.id
     original_username = current_user["username"]
     group_id_short = groupId[:8]
 
