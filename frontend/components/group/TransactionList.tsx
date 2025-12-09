@@ -27,7 +27,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
         const payer = group.members.find(m => m.userId === (tx.payerId || tx.createdById));
         const payerName = payer ? payer.username : tx.createdBy;
         const isCredit = tx.type === TransactionType.CREDIT;
-        const date = new Date(tx.date);
+        const date = new Date(tx.date + 'Z');
         const day = date.getDate();
         const month = date.toLocaleString('default', { month: 'short' });
         const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

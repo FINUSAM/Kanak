@@ -232,6 +232,7 @@ class TransactionCreate(TransactionBase):
 
 class TransactionUpdate(TransactionBase):
     splits: Optional[List[TransactionSplitCreate]] = None
+    date: Optional[datetime] = None
 
 class Transaction(TransactionBase):
     id: str

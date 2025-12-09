@@ -60,7 +60,7 @@ Kanak implements a strict permission system:
 
 ## Tech Stack
 - **Frontend**: React 19, TypeScript
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS (configured with PostCSS for production-ready builds)
 - **Icons**: Lucide React
 - **PDF Generation**: jsPDF, jsPDF-AutoTable
 

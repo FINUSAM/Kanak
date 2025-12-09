@@ -11,7 +11,7 @@ Kanak is a full-stack web application for group expense tracking. This document 
 *   **Framework:** React
 *   **Build Tool:** Vite
 *   **Language:** TypeScript
-*   **Styling:** Tailwind CSS (inferred from class names)
+*   **Styling:** Tailwind CSS (configured with PostCSS for production builds)
 *   **API Client:** Axios
 *   **Authentication:** Supabase Client (`@supabase/supabase-js`)
 *   **UI Components:** `lucide-react` for icons

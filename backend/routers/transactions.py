@@ -144,14 +144,19 @@ async def update_transaction(groupId: str, transactionId: str, transaction_data:
 
     validate_splits(transaction_data) # Validate splits
     
+    # Prepare update values
+    update_values = {
+        "type": transaction_data.type,
+        "amount": transaction_data.amount,
+        "description": transaction_data.description,
+        "payerId": transaction_data.payerId,
+        "splitMode": transaction_data.splitMode,
+    }
+    if transaction_data.date:
+        update_values["date"] = transaction_data.date
+
     # Update transaction
-    update_transaction_query = transactions.update().where(transactions.c.id == transactionId).values(
-        type=transaction_data.type,
-        amount=transaction_data.amount,
-        description=transaction_data.description,
-        payerId=transaction_data.payerId,
-        splitMode=transaction_data.splitMode
-    )
+    update_transaction_query = transactions.update().where(transactions.c.id == transactionId).values(**update_values)
     await database.execute(update_transaction_query)
 
     # Delete existing splits and insert new ones

@@ -24,6 +24,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [txDesc, setTxDesc] = useState('');
   const [txType, setTxType] = useState<TransactionType>(TransactionType.CREDIT);
   const [txCategory, setTxCategory] = useState('Other');
+  const [txDate, setTxDate] = useState<string>('');
   const [payerId, setPayerId] = useState<string>(user.id);
   const [splitMode, setSplitMode] = useState<SplitMode>(SplitMode.EQUAL);
   const [selectedOtherMembers, setSelectedOtherMembers] = useState<string[]>([]);
@@ -41,6 +42,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setTxAmount(tx.amount.toString());
         setTxType(tx.type);
         setTxCategory(tx.category);
+        const localDate = new Date(tx.date);
+        localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+        setTxDate(localDate.toISOString().slice(0, 16));
         setPayerId(tx.payerId || tx.createdById);
         setSplitMode(tx.splitMode);
 
@@ -77,6 +81,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     setTxAmount('');
     setTxDesc('');
     setTxCategory('Other');
+    setTxDate('');
     setSplitValues({});
     setSplitMode(SplitMode.EQUAL);
     setIncludeMyself(false);
@@ -275,7 +280,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     const splits = getFinalSplits(amount);
 
     try {
-      const transactionData = {
+      const transactionData: any = {
         type: txType,
         amount,
         description: txDesc,
@@ -286,6 +291,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       };
 
       if (editingTransaction) {
+        if(txDate) {
+          transactionData.date = new Date(txDate).toISOString();
+        }
         await api.put(`/groups/${group.id}/transactions/${editingTransaction.id}`, transactionData);
       } else {
         await api.post(`/groups/${group.id}/transactions/`, transactionData);
@@ -352,6 +360,18 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               />
             </div>
           </div>
+
+          {editingTransaction && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="datetime-local"
+                value={txDate}
+                onChange={(e) => setTxDate(e.target.value)}
+                className="w-full bg-white text-gray-900 border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
