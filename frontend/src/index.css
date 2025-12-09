@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* Custom scrollbar for webkit */
 ::-webkit-scrollbar {
@@ -20,12 +18,12 @@
 
 /* Add to home screen styles */
 #addToHomeScreenContainer {
-  transform: translate(-50%, 200%);
+  transform: translateY(200%);
   transition: transform 0.4s ease-in-out;
 }
 
 #addToHomeScreenContainer.show {
-  transform: translate(-50%, 0);
+  transform: translateY(0);
 }
 
 .btn-close:focus, .btn-dark:focus {
