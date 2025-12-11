@@ -95,7 +95,7 @@ transactions = Table(
     Column("type", Enum(TransactionType)),
     Column("amount", Float),
     Column("description", String),
-    Column("date", DateTime, server_default=func.now()),
+    Column("date", DateTime(timezone=True), server_default=func.now()),
     Column("createdBy", String),
     Column("createdById", sqlalchemy.String, ForeignKey("users.id")),
     Column("payerId", sqlalchemy.String, ForeignKey("users.id")),

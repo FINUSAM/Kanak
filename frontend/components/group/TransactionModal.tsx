@@ -42,9 +42,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setTxAmount(tx.amount.toString());
         setTxType(tx.type);
         setTxCategory(tx.category);
-        const localDate = new Date(tx.date);
-        localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
-        setTxDate(localDate.toISOString().slice(0, 16));
+        const date = new Date(tx.date + 'Z');
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+        setTxDate(localDateTimeString);
         setPayerId(tx.payerId || tx.createdById);
         setSplitMode(tx.splitMode);
 

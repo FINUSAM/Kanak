@@ -155,6 +155,9 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
     *   Fixed `CORSMiddleware` configuration to allow `http://127.0.0.1:3000`.
     *   Added `PUT /groups/{groupId}` endpoint to update group name and description (for owners only).
     *   Added `isActive` column to `members` table for soft deletion.
+    *   **Implemented robust timezone handling for transaction dates:** Modified `backend/models.py` to make the `date` column timezone-aware (`DateTime(timezone=True)`), ensuring consistent UTC storage and preventing `TypeError` with naive/aware datetimes.
+    *   **Fixed CORS preflight requests:** Updated `backend/security.py` to allow `OPTIONS` requests to pass through authentication correctly, resolving CORS issues for `PUT` operations.
+
     *   Implemented `PUT /groups/{groupId}/members/{memberId}` endpoint to update member roles (for owners/admins).
     *   Implemented "replace with guest" functionality for member removal and leaving group:
         *   `PUT /groups/{groupId}/members/{memberId}/replace-with-guest`: Replaces a removed member with a guest, reassigns transactions. Prevents removing OWNER or GUEST roles.
@@ -173,6 +176,8 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
         *   Added **Transaction Split Validation** to ensure split amounts/percentages match total.
         *   Modified `/auth/login` to return **User Data on Login** along with the token.
         *   Implemented **Role-Based Access Control for Transactions** (CONTRIBUTORs can only add, not edit/delete).
+        *   **Fixed CORS preflight requests:** Updated `backend/security.py` to allow `OPTIONS` requests to pass through authentication correctly, resolving CORS issues for `PUT` operations.
+        *   **Implemented robust timezone handling for transaction dates:** Modified `backend/models.py` to make the `date` column timezone-aware (`DateTime(timezone=True)`), ensuring consistent UTC storage and preventing `TypeError` with naive/aware datetimes.
 *   **Frontend:**
     *   Refactored the entire frontend to connect to the new backend API.
     *   Removed the old `localStorage`-based mock backend.
@@ -196,5 +201,8 @@ Here's a breakdown of what each role in the Kanak application can and cannot do:
         *   Implemented **Global Error Handling** using React Context to display API errors.
         *   Updated `Auth.tsx` to retrieve user data directly from the login response.
         *   Implemented "Add to Home Screen" (A2HS) functionality for PWA support.
+    *   **Migrated Tailwind CSS to PostCSS setup:** Removed CDN link from `index.html` and configured Tailwind CSS via `@tailwindcss/vite` plugin in `vite.config.ts` and `tailwind.config.js` for production-ready builds.
+    *   **Ensured correct local time display for transaction dates:** Updated `frontend/components/group/TransactionList.tsx` to explicitly interpret backend date strings as UTC and display them in the user's local timezone. Also, fixed `frontend/components/group/TransactionModal.tsx` to correctly display and submit local time to backend as UTC.
+    *   **Clarified Supabase OAuth Redirect Configuration:** Provided guidance on configuring Supabase "Site URL" and "Redirect URLs" to support both local development and production deployments.
 
 This document should provide a solid foundation for any new Gemini instance to understand and contribute to the Kanak project.
